@@ -11,7 +11,7 @@
     "tape": "^5.2.2"
   },
   "scripts": {
-    "test": "standard && tape test.js | tap-dot"
+    "test": "standard && tape test/*.test.js | tap-dot"
   },
   "repository": {
     "type": "git",
