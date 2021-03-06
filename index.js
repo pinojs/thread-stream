@@ -71,10 +71,25 @@ class ThreadStream extends EventEmitter {
       return true
     }
 
-    // TODO handle overflow
-    const current = Atomics.load(this._state, WRITE_INDEX)
+    if (data.length >= this._data.length) {
+      // We are not splitting the string in two to avoid dealing
+      // with truncated utf-8 chunks, therefore we cannot write
+      // a string longer than the buffer.
+      throw new Error('The SharedArrayBuffer is too small')
+    }
+
+    let current = Atomics.load(this._state, WRITE_INDEX)
+    const length = Buffer.byteLength(data)
+    if (current + length >= this._data.length) {
+      // Handle overflow cases, we need to go back
+      // at the beginning of the buffer to write the string.
+      this.flushSync()
+      Atomics.store(this._state, READ_INDEX, 0)
+      Atomics.store(this._state, WRITE_INDEX, 0)
+      current = 0
+    }
     this._data.write(data, current)
-    Atomics.store(this._state, WRITE_INDEX, current + Buffer.byteLength(data))
+    Atomics.store(this._state, WRITE_INDEX, current + length)
     Atomics.notify(this._state, WRITE_INDEX)
     return true
   }
@@ -85,12 +100,26 @@ class ThreadStream extends EventEmitter {
       return
     }
 
-    // this must be loop
-    const readIndex = Atomics.load(this._state, READ_INDEX)
-    Atomics.wait(this._state, READ_INDEX, readIndex)
+    this.flushSync()
 
+    // process._rawDebug('writing index')
     Atomics.store(this._state, WRITE_INDEX, -1)
+    // process._rawDebug(`(end) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
     Atomics.notify(this._state, WRITE_INDEX)
+  }
+
+  flushSync () {
+    while (true) {
+      const readIndex = Atomics.load(this._state, READ_INDEX)
+      const writeIndex = Atomics.load(this._state, WRITE_INDEX)
+      //  process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
+      if (readIndex !== writeIndex) {
+        // TODO: add a timeout
+        Atomics.wait(this._state, READ_INDEX, readIndex)
+      } else {
+        break
+      }
+    }
   }
 }
 
