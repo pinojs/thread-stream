@@ -85,7 +85,6 @@ class ThreadStream extends EventEmitter {
       // at the beginning of the buffer to write the string.
       this.flushSync()
       Atomics.store(this._state, READ_INDEX, 0)
-      Atomics.store(this._state, WRITE_INDEX, 0)
       current = 0
     }
     this._data.write(data, current)
