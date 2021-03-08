@@ -3,6 +3,7 @@
 const { EventEmitter } = require('events')
 const { Worker } = require('worker_threads')
 const { join } = require('path')
+const wait = require('./lib/wait')
 const {
   WRITE_INDEX,
   READ_INDEX
@@ -26,13 +27,14 @@ function createWorker (stream, opts) {
 }
 
 class ThreadStream extends EventEmitter {
-  constructor (opts) {
+  constructor (opts = {}) {
     super()
 
     this._stateBuf = new SharedArrayBuffer(128)
     this._state = new Int32Array(this._stateBuf)
     this._dataBuf = new SharedArrayBuffer(opts.bufferSize || 4 * 1024 * 1024)
     this._data = Buffer.from(this._dataBuf)
+    this._sync = opts.sync === undefined ? true : false
     this.worker = createWorker(this, opts)
     this.ready = false
     this.ending = false
@@ -66,7 +68,7 @@ class ThreadStream extends EventEmitter {
   }
 
   write (data) {
-    if (!this.ready) {
+    if (!this.ready || this.flushing) {
       this.buf += data
       return true
     }
@@ -83,9 +85,24 @@ class ThreadStream extends EventEmitter {
     if (current + length >= this._data.length) {
       // Handle overflow cases, we need to go back
       // at the beginning of the buffer to write the string.
-      this.flushSync()
-      Atomics.store(this._state, READ_INDEX, 0)
-      current = 0
+      if (this._sync) {
+        this.flushSync()
+        Atomics.store(this._state, READ_INDEX, 0)
+        current = 0
+      } else {
+        this.flushing = true
+        this.buf = data
+        this.flush(() => {
+          this.flushing = false
+          current = 0
+          this._data.write(this.buf, current)
+          Atomics.store(this._state, WRITE_INDEX, current + Buffer.byteLength(this.buf))
+          Atomics.notify(this._state, WRITE_INDEX)
+          this.buf = ''
+          this.emit('drain')
+        })
+        return
+      }
     }
     this._data.write(data, current)
     Atomics.store(this._state, WRITE_INDEX, current + length)
@@ -107,14 +124,23 @@ class ThreadStream extends EventEmitter {
     Atomics.notify(this._state, WRITE_INDEX)
   }
 
+  flush (cb) {
+    const writeIndex = Atomics.load(this._state, WRITE_INDEX)
+    wait(this._state, READ_INDEX, writeIndex, Infinity, function () {
+      // TODO handle result
+      cb()
+    })
+  }
+
   flushSync () {
+    const writeIndex = Atomics.load(this._state, WRITE_INDEX)
+
     while (true) {
       const readIndex = Atomics.load(this._state, READ_INDEX)
-      const writeIndex = Atomics.load(this._state, WRITE_INDEX)
       //  process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
       if (readIndex !== writeIndex) {
         // TODO: add a timeout
-        Atomics.wait(this._state, READ_INDEX, readIndex)
+        Atomics.wait(this._state, READ_INDEX, writeIndex)
       } else {
         break
       }
