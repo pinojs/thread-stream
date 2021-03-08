@@ -4,7 +4,6 @@
   "description": "A streaming way to send data to a Node.js Worker Thread",
   "main": "index.js",
   "dependencies": {
-    "14": "^3.1.6"
   },
   "devDependencies": {
     "fastbench": "^1.0.1",
