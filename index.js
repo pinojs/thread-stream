@@ -63,7 +63,9 @@ class ThreadStream extends EventEmitter {
     })
 
     this.worker.on('exit', () => {
-      this.emit('close')
+      setImmediate(() => {
+        this.emit('close')
+      })
     })
   }
 
@@ -95,7 +97,9 @@ class ThreadStream extends EventEmitter {
         this.flush(() => {
           this.flushing = false
           current = 0
+          process._rawDebug('aaa ' + Buffer.byteLength(this.buf))
           this._data.write(this.buf, current)
+          Atomics.store(this._state, READ_INDEX, 0)
           Atomics.store(this._state, WRITE_INDEX, current + Buffer.byteLength(this.buf))
           Atomics.notify(this._state, WRITE_INDEX)
           this.buf = ''
@@ -113,6 +117,11 @@ class ThreadStream extends EventEmitter {
   end () {
     this.ending = true
     if (!this.ready) {
+      return
+    }
+
+    if (this.flushing) {
+      this.once('drain', this.end.bind(this))
       return
     }
 
