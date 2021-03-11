@@ -39,7 +39,7 @@ class ThreadStream extends EventEmitter {
     this._state = new Int32Array(this._stateBuf)
     this._dataBuf = new SharedArrayBuffer(opts.bufferSize || 4 * 1024 * 1024)
     this._data = Buffer.from(this._dataBuf)
-    this._sync = opts.sync === undefined
+    this._sync = opts.sync === undefined ? true : opts.sync
     this.worker = createWorker(this, opts)
     this.ready = false
     this.ending = false
@@ -137,6 +137,8 @@ class ThreadStream extends EventEmitter {
 
     this.flushSync()
 
+    // process._rawDebug('end...!')
+
     // process._rawDebug('writing index')
     Atomics.store(this._state, WRITE_INDEX, -1)
     // process._rawDebug(`(end) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
@@ -160,14 +162,15 @@ class ThreadStream extends EventEmitter {
 
   flushSync () {
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
+    let res
 
     // TODO handle deadlock
     while (true) {
       const readIndex = Atomics.load(this._state, READ_INDEX)
-      //  process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
+      // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
       if (readIndex !== writeIndex) {
         // TODO: add a timeout
-        Atomics.wait(this._state, READ_INDEX, writeIndex)
+        Atomics.wait(this._state, READ_INDEX, readIndex)
       } else {
         break
       }
