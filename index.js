@@ -97,7 +97,7 @@ class ThreadStream extends EventEmitter {
         this.flush(() => {
           this.flushing = false
           current = 0
-          process._rawDebug('aaa ' + Buffer.byteLength(this.buf))
+          // process._rawDebug('writing ' + Buffer.byteLength(this.buf))
           this._data.write(this.buf, current)
           Atomics.store(this._state, READ_INDEX, 0)
           Atomics.store(this._state, WRITE_INDEX, current + Buffer.byteLength(this.buf))
@@ -135,8 +135,12 @@ class ThreadStream extends EventEmitter {
 
   flush (cb) {
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
-    wait(this._state, READ_INDEX, writeIndex, Infinity, function () {
-      // TODO handle result
+    wait(this._state, READ_INDEX, writeIndex, Infinity, (err, res) => {
+      if (res === 'not-equal') {
+        // TODO handle deadlock
+        this.flush(cb)
+        return
+      }
       cb()
     })
   }
@@ -144,6 +148,7 @@ class ThreadStream extends EventEmitter {
   flushSync () {
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
 
+    // TODO handle deadlock
     while (true) {
       const readIndex = Atomics.load(this._state, READ_INDEX)
       //  process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
