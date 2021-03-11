@@ -162,7 +162,6 @@ class ThreadStream extends EventEmitter {
 
   flushSync () {
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
-    let res
 
     // TODO handle deadlock
     while (true) {

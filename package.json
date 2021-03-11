@@ -3,14 +3,16 @@
   "version": "0.0.1",
   "description": "A streaming way to send data to a Node.js Worker Thread",
   "main": "index.js",
-  "dependencies": {
-  },
   "devDependencies": {
     "fastbench": "^1.0.1",
+    "husky": "^5.1.3",
     "sonic-boom": "^1.3.2",
     "standard": "^16.0.3",
     "tap-dot": "^2.0.0",
     "tape": "^5.2.2"
+  },
+  "hooks": {
+    "pre-commit": "npm test"
   },
   "scripts": {
     "test": "standard && tape test/*.test.js | tap-dot"
