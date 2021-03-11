@@ -25,7 +25,6 @@ const threadStreamAsync = new ThreadStream({
   sync: false
 })
 
-
 const MAX = 10000
 
 let str = ''

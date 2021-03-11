@@ -39,7 +39,7 @@ class ThreadStream extends EventEmitter {
     this._state = new Int32Array(this._stateBuf)
     this._dataBuf = new SharedArrayBuffer(opts.bufferSize || 4 * 1024 * 1024)
     this._data = Buffer.from(this._dataBuf)
-    this._sync = opts.sync === undefined ? true : false
+    this._sync = opts.sync === undefined
     this.worker = createWorker(this, opts)
     this.ready = false
     this.ending = false
@@ -146,6 +146,9 @@ class ThreadStream extends EventEmitter {
   flush (cb) {
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
     wait(this._state, READ_INDEX, writeIndex, Infinity, (err, res) => {
+      if (err) {
+        this.emit('error', err)
+      }
       if (res === 'not-equal') {
         // TODO handle deadlock
         this.flush(cb)

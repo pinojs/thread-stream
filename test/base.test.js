@@ -60,7 +60,7 @@ test('base', function (t) {
   })
 })
 
-test('overflow without drain', function (t) {
+test('overflow sync=true', function (t) {
   t.plan(4)
 
   const dest = file()
@@ -90,18 +90,18 @@ test('overflow without drain', function (t) {
   }
 
   stream.on('finish', () => {
+    t.pass('finish emitted')
+  })
+
+  stream.on('close', () => {
     readFile(dest, 'utf8', (err, data) => {
       t.error(err)
       t.equal(data.length, 200)
     })
   })
-
-  stream.on('close', () => {
-    t.pass('close emitted')
-  })
 })
 
-test('overflow with drain', function (t) {
+test('overflow sync=false', function (t) {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
