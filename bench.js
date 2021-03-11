@@ -11,7 +11,8 @@ const core = fs.createWriteStream('/dev/null')
 const fd = fs.openSync('/dev/null', 'w')
 const sonic = new SonicBoom({ fd })
 const sonicSync = new SonicBoom({ fd, sync: true })
-const dummyConsole = new Console(fs.createWriteStream('/dev/null'))
+const out = fs.createWriteStream('/dev/null')
+const dummyConsole = new Console(out)
 const threadStream = new ThreadStream({
   filename: join(__dirname, 'test', 'to-file'),
   workerData: { dest: '/dev/null' },
@@ -25,7 +26,7 @@ const threadStreamAsync = new ThreadStream({
 })
 
 
-const MAX = 1000
+const MAX = 10000
 
 let str = ''
 
@@ -42,7 +43,7 @@ const run = bench([
     }
     setImmediate(cb)
   },
-  function benchThreadStream (cb) {
+  function benchThreadStreamAsync (cb) {
     threadStreamAsync.once('drain', cb)
     for (let i = 0; i < MAX; i++) {
       threadStreamAsync.write(str)
@@ -77,7 +78,8 @@ const run = bench([
 function doBench () {
   run(function () {
     run(function () {
-      threadStream.end()
+      // TODO figure out why it does not shut down
+      process.exit(0)
     })
   })
 }

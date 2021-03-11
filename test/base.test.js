@@ -27,12 +27,16 @@ process.on('beforeExit', () => {
 })
 
 test('base', function (t) {
-  t.plan(6)
+  t.plan(7)
 
   const dest = file()
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-file'),
     workerData: { dest }
+  })
+
+  stream.on('drain', () => {
+    t.pass('drain')
   })
 
   stream.on('ready', () => {
@@ -98,8 +102,6 @@ test('overflow without drain', function (t) {
 })
 
 test('overflow with drain', function (t) {
-  t.plan(5)
-
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
@@ -139,6 +141,7 @@ test('overflow with drain', function (t) {
     readFile(dest, 'utf8', (err, data) => {
       t.error(err)
       t.equal(data.length, 200)
+      t.end()
     })
   })
 })

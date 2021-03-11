@@ -26,6 +26,11 @@ function createWorker (stream, opts) {
   return worker
 }
 
+function drain (stream) {
+  stream.needDrain = false
+  stream.emit('drain')
+}
+
 class ThreadStream extends EventEmitter {
   constructor (opts = {}) {
     super()
@@ -38,6 +43,7 @@ class ThreadStream extends EventEmitter {
     this.worker = createWorker(this, opts)
     this.ready = false
     this.ending = false
+    this.needDrain = false
 
     this.buf = ''
 
@@ -111,6 +117,10 @@ class ThreadStream extends EventEmitter {
     this._data.write(data, current)
     Atomics.store(this._state, WRITE_INDEX, current + length)
     Atomics.notify(this._state, WRITE_INDEX)
+    if (!this.needDrain) {
+      this.needDrain = true
+      process.nextTick(drain, this)
+    }
     return true
   }
 
