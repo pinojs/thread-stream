@@ -22,9 +22,12 @@ const stream = new ThreadStream({
 })
 
 stream.write('hello')
-stream.write(' ')
-stream.write('world')
-stream.end()
+stream.flush(function () {
+  stream.write(' ')
+  stream.write('world')
+  stream.flushSync()
+  stream.end()
+})
 ```
 
 In `worker.js`:
