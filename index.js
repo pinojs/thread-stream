@@ -3,7 +3,7 @@
 const { EventEmitter } = require('events')
 const { Worker } = require('worker_threads')
 const { join } = require('path')
-const wait = require('./lib/wait')
+const { wait } = require('./lib/wait')
 const {
   WRITE_INDEX,
   READ_INDEX
@@ -146,6 +146,7 @@ class ThreadStream extends EventEmitter {
   }
 
   flush (cb) {
+    // TODO write all .buf
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
     wait(this._state, READ_INDEX, writeIndex, Infinity, (err, res) => {
       if (err) {
@@ -161,6 +162,7 @@ class ThreadStream extends EventEmitter {
   }
 
   flushSync () {
+    // TODO write all .buf
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
 
     // TODO handle deadlock

@@ -21,7 +21,7 @@ const threadStream = new ThreadStream({
 const threadStreamAsync = new ThreadStream({
   filename: join(__dirname, 'test', 'to-file'),
   workerData: { dest: '/dev/null' },
-  bufferSize: 4 * 1024 * 1024,
+  bufferSize: 32 * 1024,
   sync: false
 })
 
