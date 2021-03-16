@@ -145,3 +145,74 @@ test('overflow sync=false', function (t) {
     })
   })
 })
+
+test('over the bufferSize at startup', function (t) {
+  t.plan(7)
+
+  const dest = file()
+  const stream = new ThreadStream({
+    bufferSize: 10,
+    filename: join(__dirname, 'to-file'),
+    workerData: { dest }
+  })
+
+  stream.on('drain', () => {
+    t.pass('drain')
+  })
+
+  stream.on('ready', () => {
+    t.pass('ready emitted')
+  })
+
+  t.ok(stream.write('hello world\n'))
+  t.ok(stream.write('something else\n'))
+
+  stream.end()
+
+  stream.on('finish', () => {
+    readFile(dest, 'utf8', (err, data) => {
+      t.error(err)
+      t.equal(data, 'hello world\nsomething else\n')
+    })
+  })
+
+  stream.on('close', () => {
+    t.pass('close emitted')
+  })
+})
+
+test('over the bufferSize at startup (async)', function (t) {
+  t.plan(7)
+
+  const dest = file()
+  const stream = new ThreadStream({
+    bufferSize: 10,
+    filename: join(__dirname, 'to-file'),
+    workerData: { dest },
+    sync: false
+  })
+
+  stream.on('drain', () => {
+    t.pass('drain')
+  })
+
+  stream.on('ready', () => {
+    t.pass('ready emitted')
+  })
+
+  t.ok(stream.write('hello world\n'))
+  t.ok(stream.write('something else\n'))
+
+  stream.end()
+
+  stream.on('finish', () => {
+    readFile(dest, 'utf8', (err, data) => {
+      t.error(err)
+      t.equal(data, 'hello world\nsomething else\n')
+    })
+  })
+
+  stream.on('close', () => {
+    t.pass('close emitted')
+  })
+})
