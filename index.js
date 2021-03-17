@@ -202,7 +202,7 @@ class ThreadStream extends EventEmitter {
     if (this.flushing) {
       throw new Error('unable to flush while flushing')
     }
-    
+
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
 
     // TODO handle deadlock

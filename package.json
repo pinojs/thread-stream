@@ -12,12 +12,10 @@
     "tap-dot": "^2.0.0",
     "tape": "^5.2.2"
   },
-  "hooks": {
-    "pre-commit": "npm test"
-  },
   "scripts": {
     "cov": "nyc tape test/*.test.js | tap-dot",
-    "test": "standard && tape test/*.test.js | tap-dot"
+    "test": "standard && tape test/*.test.js | tap-dot",
+    "prepare": "husky install"
   },
   "repository": {
     "type": "git",
