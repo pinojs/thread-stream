@@ -122,6 +122,7 @@ test('overflow sync=false', function (t) {
   // Write 10 chars, 20 times
   function write () {
     if (count++ === 20) {
+      t.pass('end sent')
       stream.end()
       return
     }
