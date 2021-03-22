@@ -225,8 +225,8 @@ class ThreadStream extends EventEmitter {
       const readIndex = Atomics.load(this._state, READ_INDEX)
       // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
       if (readIndex !== writeIndex) {
-        // TODO: add a timeout
-        Atomics.wait(this._state, READ_INDEX, readIndex)
+        // TODO this timeouts for some reason.
+        Atomics.wait(this._state, READ_INDEX, readIndex, 1000)
       } else {
         break
       }
