@@ -26,13 +26,14 @@ process.on('beforeExit', () => {
   }
 })
 
-test('base', function (t) {
+test('base sync=true', function (t) {
   t.plan(7)
 
   const dest = file()
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-file'),
-    workerData: { dest }
+    workerData: { dest },
+    sync: true
   })
 
   stream.on('drain', () => {
@@ -154,7 +155,8 @@ test('over the bufferSize at startup', function (t) {
   const stream = new ThreadStream({
     bufferSize: 10,
     filename: join(__dirname, 'to-file'),
-    workerData: { dest }
+    workerData: { dest },
+    sync: true
   })
 
   stream.on('drain', () => {

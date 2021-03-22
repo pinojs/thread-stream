@@ -72,7 +72,7 @@ class ThreadStream extends EventEmitter {
     this._state = new Int32Array(this._stateBuf)
     this._dataBuf = new SharedArrayBuffer(opts.bufferSize || 4 * 1024 * 1024)
     this._data = Buffer.from(this._dataBuf)
-    this._sync = opts.sync === undefined ? true : opts.sync
+    this._sync = opts.sync || false
     this.worker = createWorker(this, opts)
     this.ready = false
     this.ending = false
