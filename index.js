@@ -216,7 +216,7 @@ class ThreadStream extends EventEmitter {
       throw new Error('unable to flush while flushing')
     }
 
-    process._rawDebug('flushSync started')
+    // process._rawDebug('flushSync started')
 
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
 
@@ -225,7 +225,7 @@ class ThreadStream extends EventEmitter {
     // TODO handle deadlock
     while (true) {
       const readIndex = Atomics.load(this._state, READ_INDEX)
-      process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
+      // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
       if (readIndex !== writeIndex) {
         // TODO this timeouts for some reason.
         Atomics.wait(this._state, READ_INDEX, readIndex, 1000)
@@ -237,7 +237,7 @@ class ThreadStream extends EventEmitter {
         throw new Error('_flushSync took too long (10s)')
       }
     }
-    process._rawDebug('flushSync finished')
+    // process._rawDebug('flushSync finished')
   }
 }
 
