@@ -67,7 +67,8 @@ test('overflow sync=true', function (t) {
   const stream = new ThreadStream({
     bufferSize: 128,
     filename: join(__dirname, 'to-file'),
-    workerData: { dest }
+    workerData: { dest },
+    sync: true
   })
 
   stream.on('ready', () => {
@@ -214,5 +215,41 @@ test('over the bufferSize at startup (async)', function (t) {
 
   stream.on('close', () => {
     t.pass('close emitted')
+  })
+})
+
+test('flushSync sync=false', function (t) {
+  const dest = file()
+  const stream = new ThreadStream({
+    bufferSize: 128,
+    filename: join(__dirname, 'to-file'),
+    workerData: { dest },
+    sync: false
+  })
+
+  stream.on('ready', () => {
+    t.pass('ready emitted')
+
+    for (let count = 0; count < 20; count++) {
+      stream.write('aaaaaaaaaa')
+    }
+    stream.flushSync()
+  })
+
+  stream.on('drain', () => {
+    t.pass('drain')
+    stream.end()
+  })
+
+  stream.on('finish', () => {
+    t.pass('finish emitted')
+  })
+
+  stream.on('close', () => {
+    readFile(dest, 'utf8', (err, data) => {
+      t.error(err)
+      t.equal(data.length, 200)
+      t.end()
+    })
   })
 })

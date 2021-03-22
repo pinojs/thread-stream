@@ -50,6 +50,10 @@ function nextFlush (stream) {
     stream.buf = stream.buf.slice(leftover)
     stream._write(toWrite, nextFlush.bind(null, stream))
   } else if (leftover === 0) {
+    if (writeIndex === 0 && stream.buf.length === 0) {
+      // we had a flushSync in the meanwhile
+      return
+    }
     stream.flush(() => {
       Atomics.store(stream._state, READ_INDEX, 0)
       Atomics.store(stream._state, WRITE_INDEX, 0)
@@ -80,15 +84,7 @@ class ThreadStream extends EventEmitter {
       switch (msg.code) {
         case 'READY':
           this.ready = true
-          if (this.buf.length > 0) {
-            const toWrite = this.buf
-            this.buf = ''
-            this.write(toWrite)
-          }
           this.emit('ready')
-          if (this.ending) {
-            this.end()
-          }
           break
         case 'FINISH':
           this.emit('finish')
@@ -123,32 +119,9 @@ class ThreadStream extends EventEmitter {
       return true
     }
 
-    const cb = () => {
-      if (!this.needDrain) {
-        // process._rawDebug('emitting drain')
-        this.needDrain = true
-        process.nextTick(drain, this)
-      }
-    }
-
     if (this._sync) {
-      while (data.length !== 0) {
-        const writeIndex = Atomics.load(this._state, WRITE_INDEX)
-        const leftover = this._data.length - writeIndex
-        if (leftover === 0) {
-          this.flushSync()
-          Atomics.store(this._state, READ_INDEX, 0)
-          Atomics.store(this._state, WRITE_INDEX, 0)
-          continue
-        } else if (leftover < 0) {
-          throw new Error('overwritten')
-        }
-
-        // TODO handle truncated utf-8 chunks
-        const toWrite = data.slice(0, leftover)
-        this._write(toWrite, cb)
-        data = data.slice(leftover)
-      }
+      this.buf += data
+      this._writeSync()
 
       return true
     }
@@ -157,14 +130,20 @@ class ThreadStream extends EventEmitter {
     this.flushing = true
     setImmediate(nextFlush, this)
 
+    // TODO implement highWaterMark
     return false
   }
 
   end () {
-    this.ending = true
     if (!this.ready) {
+      this.once('ready', this.end.bind(this))
       return
     }
+
+    if (this.ending) {
+      return
+    }
+    this.ending = true
 
     if (this.flushing) {
       this.once('drain', this.end.bind(this))
@@ -173,12 +152,11 @@ class ThreadStream extends EventEmitter {
 
     this.flushSync()
 
-    // process._rawDebug('end...!')
-
     // process._rawDebug('writing index')
     Atomics.store(this._state, WRITE_INDEX, -1)
     // process._rawDebug(`(end) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
     Atomics.notify(this._state, WRITE_INDEX)
+    // process._rawDebug('end finished...')
   }
 
   flush (cb) {
@@ -198,10 +176,47 @@ class ThreadStream extends EventEmitter {
     })
   }
 
+  _writeSync () {
+    const cb = () => {
+      if (!this.needDrain) {
+        // process._rawDebug('emitting drain')
+        this.needDrain = true
+        process.nextTick(drain, this)
+      }
+    }
+    this.flushing = false
+
+    while (this.buf.length !== 0) {
+      const writeIndex = Atomics.load(this._state, WRITE_INDEX)
+      const leftover = this._data.length - writeIndex
+      if (leftover === 0) {
+        this._flushSync()
+        Atomics.store(this._state, READ_INDEX, 0)
+        Atomics.store(this._state, WRITE_INDEX, 0)
+        continue
+      } else if (leftover < 0) {
+        throw new Error('overwritten')
+      }
+
+      // TODO handle truncated utf-8 chunks
+      const toWrite = this.buf.slice(0, leftover)
+      this.buf = this.buf.slice(leftover)
+      // process._rawDebug('writing ' + toWrite.length)
+      this._write(toWrite, cb)
+    }
+  }
+
   flushSync () {
+    this._writeSync()
+    this._flushSync()
+  }
+
+  _flushSync () {
     if (this.flushing) {
       throw new Error('unable to flush while flushing')
     }
+
+    // process._rawDebug('flushSync started')
 
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
 
@@ -216,6 +231,7 @@ class ThreadStream extends EventEmitter {
         break
       }
     }
+    // process._rawDebug('flushSync finished')
   }
 }
 
