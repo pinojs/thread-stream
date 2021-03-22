@@ -140,15 +140,15 @@ class ThreadStream extends EventEmitter {
       return
     }
 
-    if (this.ending) {
-      return
-    }
-    this.ending = true
-
     if (this.flushing) {
       this.once('drain', this.end.bind(this))
       return
     }
+
+    if (this.ending) {
+      return
+    }
+    this.ending = true
 
     this.flushSync()
 
