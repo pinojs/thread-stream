@@ -220,6 +220,8 @@ class ThreadStream extends EventEmitter {
 
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
 
+    let spins = 10
+
     // TODO handle deadlock
     while (true) {
       const readIndex = Atomics.load(this._state, READ_INDEX)
@@ -229,6 +231,10 @@ class ThreadStream extends EventEmitter {
         Atomics.wait(this._state, READ_INDEX, readIndex, 1000)
       } else {
         break
+      }
+
+      if (++spins === 10) {
+        throw new Error('_flushSync took too long (10s)')
       }
     }
     // process._rawDebug('flushSync finished')
