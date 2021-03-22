@@ -15,6 +15,7 @@
   "scripts": {
     "cov": "nyc tape test/*.test.js | tap-dot",
     "test": "standard && tape test/*.test.js | tap-dot",
+    "ci": "standard && tape test/*.test.js",
     "prepare": "husky install"
   },
   "repository": {
