@@ -42,6 +42,7 @@ test('base', function (t) {
   let runs = 0
   function benchThreadStream () {
     if (++runs === 1000) {
+      process._rawDebug('sending end')
       stream.end()
       return
     }

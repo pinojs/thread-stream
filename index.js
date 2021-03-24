@@ -162,6 +162,7 @@ class ThreadStream extends EventEmitter {
   flush (cb) {
     // TODO write all .buf
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
+    // process._rawDebug(`(flush) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
     wait(this._state, READ_INDEX, writeIndex, Infinity, (err, res) => {
       if (err) {
         this.emit('error', err)
