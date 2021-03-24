@@ -31,6 +31,39 @@ function drain (stream) {
   stream.emit('drain')
 }
 
+function nextFlush (stream) {
+  const writeIndex = Atomics.load(stream._state, WRITE_INDEX)
+  const leftover = stream._data.length - writeIndex
+
+  if (leftover > 0) {
+    if (stream.buf.length === 0) {
+      stream.flushing = false
+      if (!stream.needDrain) {
+        // process._rawDebug('emitting drain')
+        stream.needDrain = true
+        process.nextTick(drain, stream)
+      }
+      return
+    }
+    // TODO handle truncated utf-8 chunks
+    const toWrite = stream.buf.slice(0, leftover)
+    stream.buf = stream.buf.slice(leftover)
+    stream._write(toWrite, nextFlush.bind(null, stream))
+  } else if (leftover === 0) {
+    if (writeIndex === 0 && stream.buf.length === 0) {
+      // we had a flushSync in the meanwhile
+      return
+    }
+    stream.flush(() => {
+      Atomics.store(stream._state, READ_INDEX, 0)
+      Atomics.store(stream._state, WRITE_INDEX, 0)
+      nextFlush(stream)
+    })
+  } else {
+    throw new Error('overwritten')
+  }
+}
+
 class ThreadStream extends EventEmitter {
   constructor (opts = {}) {
     super()
@@ -39,7 +72,7 @@ class ThreadStream extends EventEmitter {
     this._state = new Int32Array(this._stateBuf)
     this._dataBuf = new SharedArrayBuffer(opts.bufferSize || 4 * 1024 * 1024)
     this._data = Buffer.from(this._dataBuf)
-    this._sync = opts.sync === undefined ? true : opts.sync
+    this._sync = opts.sync || false
     this.worker = createWorker(this, opts)
     this.ready = false
     this.ending = false
@@ -51,14 +84,7 @@ class ThreadStream extends EventEmitter {
       switch (msg.code) {
         case 'READY':
           this.ready = true
-          if (this.buf.length > 0) {
-            this.write(this.buf)
-            this.buf = ''
-          }
           this.emit('ready')
-          if (this.ending) {
-            this.end()
-          }
           break
         case 'FINISH':
           this.emit('finish')
@@ -75,58 +101,42 @@ class ThreadStream extends EventEmitter {
     })
   }
 
-  write (data) {
-    if (!this.ready || this.flushing) {
-      this.buf += data
-      return true
-    }
-
-    if (data.length >= this._data.length) {
-      // We are not splitting the string in two to avoid dealing
-      // with truncated utf-8 chunks, therefore we cannot write
-      // a string longer than the buffer.
-      throw new Error('The SharedArrayBuffer is too small')
-    }
-
-    let current = Atomics.load(this._state, WRITE_INDEX)
+  _write (data, cb) {
+    // data is smaller than the shared buffer length
+    const current = Atomics.load(this._state, WRITE_INDEX)
     const length = Buffer.byteLength(data)
-    if (current + length >= this._data.length) {
-      // Handle overflow cases, we need to go back
-      // at the beginning of the buffer to write the string.
-      if (this._sync) {
-        this.flushSync()
-        Atomics.store(this._state, READ_INDEX, 0)
-        current = 0
-      } else {
-        this.flushing = true
-        this.buf = data
-        this.flush(() => {
-          this.flushing = false
-          current = 0
-          // process._rawDebug('writing ' + Buffer.byteLength(this.buf))
-          this._data.write(this.buf, current)
-          Atomics.store(this._state, READ_INDEX, 0)
-          Atomics.store(this._state, WRITE_INDEX, current + Buffer.byteLength(this.buf))
-          Atomics.notify(this._state, WRITE_INDEX)
-          this.buf = ''
-          this.emit('drain')
-        })
-        return
-      }
-    }
     this._data.write(data, current)
     Atomics.store(this._state, WRITE_INDEX, current + length)
     Atomics.notify(this._state, WRITE_INDEX)
-    if (!this.needDrain) {
-      this.needDrain = true
-      process.nextTick(drain, this)
-    }
+    cb()
     return true
   }
 
+  write (data) {
+    if (!this.ready || this.flushing) {
+      this.buf += data
+      // TODO this should return false
+      return true
+    }
+
+    if (this._sync) {
+      this.buf += data
+      this._writeSync()
+
+      return true
+    }
+
+    this.buf = data
+    this.flushing = true
+    setImmediate(nextFlush, this)
+
+    // TODO implement highWaterMark
+    return false
+  }
+
   end () {
-    this.ending = true
     if (!this.ready) {
+      this.once('ready', this.end.bind(this))
       return
     }
 
@@ -135,14 +145,18 @@ class ThreadStream extends EventEmitter {
       return
     }
 
-    this.flushSync()
+    if (this.ending) {
+      return
+    }
+    this.ending = true
 
-    // process._rawDebug('end...!')
+    this.flushSync()
 
     // process._rawDebug('writing index')
     Atomics.store(this._state, WRITE_INDEX, -1)
     // process._rawDebug(`(end) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
     Atomics.notify(this._state, WRITE_INDEX)
+    // process._rawDebug('end finished...')
   }
 
   flush (cb) {
@@ -151,6 +165,8 @@ class ThreadStream extends EventEmitter {
     wait(this._state, READ_INDEX, writeIndex, Infinity, (err, res) => {
       if (err) {
         this.emit('error', err)
+        cb(err)
+        return
       }
       if (res === 'not-equal') {
         // TODO handle deadlock
@@ -161,21 +177,68 @@ class ThreadStream extends EventEmitter {
     })
   }
 
+  _writeSync () {
+    const cb = () => {
+      if (!this.needDrain) {
+        // process._rawDebug('emitting drain')
+        this.needDrain = true
+        process.nextTick(drain, this)
+      }
+    }
+    this.flushing = false
+
+    while (this.buf.length !== 0) {
+      const writeIndex = Atomics.load(this._state, WRITE_INDEX)
+      const leftover = this._data.length - writeIndex
+      if (leftover === 0) {
+        this._flushSync()
+        Atomics.store(this._state, READ_INDEX, 0)
+        Atomics.store(this._state, WRITE_INDEX, 0)
+        continue
+      } else if (leftover < 0) {
+        throw new Error('overwritten')
+      }
+
+      // TODO handle truncated utf-8 chunks
+      const toWrite = this.buf.slice(0, leftover)
+      this.buf = this.buf.slice(leftover)
+      // process._rawDebug('writing ' + toWrite.length)
+      this._write(toWrite, cb)
+    }
+  }
+
   flushSync () {
-    // TODO write all .buf
+    this._writeSync()
+    this._flushSync()
+  }
+
+  _flushSync () {
+    if (this.flushing) {
+      throw new Error('unable to flush while flushing')
+    }
+
+    // process._rawDebug('flushSync started')
+
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
+
+    let spins = 10
 
     // TODO handle deadlock
     while (true) {
       const readIndex = Atomics.load(this._state, READ_INDEX)
       // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
       if (readIndex !== writeIndex) {
-        // TODO: add a timeout
-        Atomics.wait(this._state, READ_INDEX, readIndex)
+        // TODO this timeouts for some reason.
+        Atomics.wait(this._state, READ_INDEX, readIndex, 1000)
       } else {
         break
       }
+
+      if (++spins === 10) {
+        throw new Error('_flushSync took too long (10s)')
+      }
     }
+    // process._rawDebug('flushSync finished')
   }
 }
 

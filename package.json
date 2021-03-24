@@ -1,6 +1,6 @@
 {
   "name": "thread-stream",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "description": "A streaming way to send data to a Node.js Worker Thread",
   "main": "index.js",
   "devDependencies": {
@@ -12,12 +12,11 @@
     "tap-dot": "^2.0.0",
     "tape": "^5.2.2"
   },
-  "hooks": {
-    "pre-commit": "npm test"
-  },
   "scripts": {
     "cov": "nyc tape test/*.test.js | tap-dot",
-    "test": "standard && tape test/*.test.js | tap-dot"
+    "test": "standard && tape test/*.test.js | tap-dot",
+    "ci": "standard && tape test/*.test.js",
+    "prepare": "husky install"
   },
   "repository": {
     "type": "git",

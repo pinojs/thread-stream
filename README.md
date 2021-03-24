@@ -18,13 +18,18 @@ const { join } = require('path')
 
 const stream = new ThreadStream({
   filename: join(__dirname, 'worker.js'),
-  workerData: { dest }
+  workerData: { dest },
+  sync: false // default
 })
 
 stream.write('hello')
+
+// Asynchronous flushing
 stream.flush(function () {
   stream.write(' ')
   stream.write('world')
+
+  // Synchronous flushing
   stream.flushSync()
   stream.end()
 })

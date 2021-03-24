@@ -13,10 +13,11 @@ const sonic = new SonicBoom({ fd })
 const sonicSync = new SonicBoom({ fd, sync: true })
 const out = fs.createWriteStream('/dev/null')
 const dummyConsole = new Console(out)
-const threadStream = new ThreadStream({
+const threadStreamSync = new ThreadStream({
   filename: join(__dirname, 'test', 'to-file'),
   workerData: { dest: '/dev/null' },
-  bufferSize: 4 * 1024 * 1024
+  bufferSize: 4 * 1024 * 1024,
+  sync: true
 })
 const threadStreamAsync = new ThreadStream({
   filename: join(__dirname, 'test', 'to-file'),
@@ -36,9 +37,9 @@ for (let i = 0; i < 10; i++) {
 setTimeout(doBench, 100)
 
 const run = bench([
-  function benchThreadStream (cb) {
+  function benchThreadStreamSync (cb) {
     for (let i = 0; i < MAX; i++) {
-      threadStream.write(str)
+      threadStreamSync.write(str)
     }
     setImmediate(cb)
   },
@@ -82,7 +83,3 @@ function doBench () {
     })
   })
 }
-
-process.on('beforeExit', function () {
-  console.log(threadStream.flushes)
-})
