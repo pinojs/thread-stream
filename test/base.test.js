@@ -1,6 +1,6 @@
 'use strict'
 
-const test = require('tape')
+const { test } = require('tap')
 const { join } = require('path')
 const { tmpdir } = require('os')
 const { unlinkSync } = require('fs')
@@ -31,7 +31,7 @@ test('base sync=true', function (t) {
 
   const dest = file()
   const stream = new ThreadStream({
-    filename: join(__dirname, 'to-file'),
+    filename: join(__dirname, 'to-file.js'),
     workerData: { dest },
     sync: true
   })
@@ -67,7 +67,7 @@ test('overflow sync=true', function (t) {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
-    filename: join(__dirname, 'to-file'),
+    filename: join(__dirname, 'to-file.js'),
     workerData: { dest },
     sync: true
   })
@@ -107,7 +107,7 @@ test('overflow sync=false', function (t) {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
-    filename: join(__dirname, 'to-file'),
+    filename: join(__dirname, 'to-file.js'),
     workerData: { dest },
     sync: false
   })
@@ -155,7 +155,7 @@ test('over the bufferSize at startup', function (t) {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 10,
-    filename: join(__dirname, 'to-file'),
+    filename: join(__dirname, 'to-file.js'),
     workerData: { dest },
     sync: true
   })
@@ -191,7 +191,7 @@ test('over the bufferSize at startup (async)', function (t) {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 10,
-    filename: join(__dirname, 'to-file'),
+    filename: join(__dirname, 'to-file.js'),
     workerData: { dest },
     sync: false
   })
@@ -225,7 +225,7 @@ test('flushSync sync=false', function (t) {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
-    filename: join(__dirname, 'to-file'),
+    filename: join(__dirname, 'to-file.js'),
     workerData: { dest },
     sync: false
   })
