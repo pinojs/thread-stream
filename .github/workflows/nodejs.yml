@@ -19,6 +19,6 @@ jobs:
     - run: node --version
     - run: npm --version
     - run: npm install
-    - run: npm run ci
+    - run: npm test
       env:
         CI: true

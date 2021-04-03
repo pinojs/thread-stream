@@ -1,6 +1,6 @@
 'use strict'
 
-const test = require('tape')
+const { test } = require('tap')
 const { join } = require('path')
 const { tmpdir } = require('os')
 const { unlinkSync } = require('fs')
@@ -36,7 +36,7 @@ for (let i = 0; i < 10; i++) {
 test('base', function (t) {
   const dest = file()
   const stream = new ThreadStream({
-    filename: join(__dirname, 'to-file'),
+    filename: join(__dirname, 'to-file.js'),
     workerData: { dest }
   })
   let runs = 0
