@@ -12,7 +12,7 @@
     "tap": "^15.0.0"
   },
   "scripts": {
-    "test": "standard && tap --no-check-coverage --no-check-coverage test/*.test.*js",
+    "test": "standard && tap --no-check-coverage test/*.test.*js",
     "prepare": "husky install"
   },
   "repository": {
