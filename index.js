@@ -3,6 +3,7 @@
 const { EventEmitter } = require('events')
 const { Worker } = require('worker_threads')
 const { join } = require('path')
+const { pathToFileURL } = require('url')
 const { wait } = require('./lib/wait')
 const {
   WRITE_INDEX,
@@ -16,7 +17,9 @@ function createWorker (stream, opts) {
 
   const worker = new Worker(toExecute, {
     workerData: {
-      filename,
+      filename: filename.indexOf('file://') === 0
+        ? filename
+        : pathToFileURL(filename).href,
       dataBuf: stream._dataBuf,
       stateBuf: stream._stateBuf,
       workerData

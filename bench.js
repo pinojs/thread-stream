@@ -14,13 +14,13 @@ const sonicSync = new SonicBoom({ fd, sync: true })
 const out = fs.createWriteStream('/dev/null')
 const dummyConsole = new Console(out)
 const threadStreamSync = new ThreadStream({
-  filename: join(__dirname, 'test', 'to-file'),
+  filename: join(__dirname, 'test', 'to-file.js'),
   workerData: { dest: '/dev/null' },
   bufferSize: 4 * 1024 * 1024,
   sync: true
 })
 const threadStreamAsync = new ThreadStream({
-  filename: join(__dirname, 'test', 'to-file'),
+  filename: join(__dirname, 'test', 'to-file.js'),
   workerData: { dest: '/dev/null' },
   bufferSize: 4 * 1024 * 1024,
   sync: false
