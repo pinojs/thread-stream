@@ -115,11 +115,16 @@ class ThreadStream extends EventEmitter {
     return true
   }
 
+  _hasSpace () {
+    const current = Atomics.load(this._state, WRITE_INDEX)
+    return this._data.length - this.buf.length - current > 0
+  }
+
   write (data) {
     if (!this.ready || this.flushing) {
       this.buf += data
-      // TODO this should return false
-      return true
+      // TODO if this.flushing, we must follow highWaterMark
+      return this._hasSpace()
     }
 
     if (this._sync) {
@@ -133,8 +138,7 @@ class ThreadStream extends EventEmitter {
     this.flushing = true
     setImmediate(nextFlush, this)
 
-    // TODO implement highWaterMark
-    return false
+    return this._hasSpace()
   }
 
   end () {
