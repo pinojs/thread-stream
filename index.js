@@ -292,6 +292,14 @@ class ThreadStream extends EventEmitter {
     }
     // process._rawDebug('flushSync finished')
   }
+
+  unref () {
+    this.worker.unref()
+  }
+
+  ref () {
+    this.worker.ref()
+  }
 }
 
 module.exports = ThreadStream

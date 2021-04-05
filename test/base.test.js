@@ -2,29 +2,9 @@
 
 const { test } = require('tap')
 const { join } = require('path')
-const { tmpdir } = require('os')
-const { unlinkSync } = require('fs')
 const { readFile } = require('fs')
+const { file } = require('./helper')
 const ThreadStream = require('..')
-
-const files = []
-let count = 0
-
-function file () {
-  const file = join(tmpdir(), `thread-stream-${process.pid}-${process.hrtime().toString()}-${count++}`)
-  files.push(file)
-  return file
-}
-
-process.on('beforeExit', () => {
-  for (const file of files) {
-    try {
-      unlinkSync(file)
-    } catch (e) {
-      console.log(e)
-    }
-  }
-})
 
 test('base sync=true', function (t) {
   t.plan(7)
