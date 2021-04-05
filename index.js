@@ -36,7 +36,7 @@ function drain (stream) {
 
 function nextFlush (stream) {
   const writeIndex = Atomics.load(stream._state, WRITE_INDEX)
-  const leftover = stream._data.length - writeIndex
+  let leftover = stream._data.length - writeIndex
 
   if (leftover > 0) {
     if (stream.buf.length === 0) {
@@ -48,10 +48,31 @@ function nextFlush (stream) {
       }
       return
     }
-    // TODO handle truncated utf-8 chunks
-    const toWrite = stream.buf.slice(0, leftover)
-    stream.buf = stream.buf.slice(leftover)
-    stream._write(toWrite, nextFlush.bind(null, stream))
+
+    let toWrite = stream.buf.slice(0, leftover)
+    let toWriteBytes = Buffer.byteLength(toWrite)
+    if (toWriteBytes <= leftover) {
+      stream.buf = stream.buf.slice(leftover)
+      // process._rawDebug('writing ' + toWrite.length)
+      stream._write(toWrite, nextFlush.bind(null, stream))
+    } else {
+      // multi-byte utf-8
+      stream.flush(() => {
+        Atomics.store(stream._state, READ_INDEX, 0)
+        Atomics.store(stream._state, WRITE_INDEX, 0)
+
+        // Find a toWrite length that fits the buffer
+        // it must exists as the buffer is at least 4 bytes length
+        // and the max utf-8 length for a char is 4 bytes.
+        while (toWriteBytes > stream.buf.length) {
+          leftover = leftover / 2
+          toWrite = stream.buf.slice(0, leftover)
+          toWriteBytes = Buffer.byteLength(toWrite)
+        }
+        stream.buf = stream.buf.slice(leftover)
+        stream._write(toWrite, nextFlush.bind(null, stream))
+      })
+    }
   } else if (leftover === 0) {
     if (writeIndex === 0 && stream.buf.length === 0) {
       // we had a flushSync in the meanwhile
@@ -63,6 +84,7 @@ function nextFlush (stream) {
       nextFlush(stream)
     })
   } else {
+    // This should never happen
     throw new Error('overwritten')
   }
 }
@@ -70,6 +92,10 @@ function nextFlush (stream) {
 class ThreadStream extends EventEmitter {
   constructor (opts = {}) {
     super()
+
+    if (opts.bufferSize < 4) {
+      throw new Error('bufferSize must at least fit a 4-byte utf-8 char')
+    }
 
     this._stateBuf = new SharedArrayBuffer(128)
     this._state = new Int32Array(this._stateBuf)
@@ -197,21 +223,40 @@ class ThreadStream extends EventEmitter {
 
     while (this.buf.length !== 0) {
       const writeIndex = Atomics.load(this._state, WRITE_INDEX)
-      const leftover = this._data.length - writeIndex
+      let leftover = this._data.length - writeIndex
       if (leftover === 0) {
         this._flushSync()
         Atomics.store(this._state, READ_INDEX, 0)
         Atomics.store(this._state, WRITE_INDEX, 0)
         continue
       } else if (leftover < 0) {
+        // This should never happen
         throw new Error('overwritten')
       }
 
-      // TODO handle truncated utf-8 chunks
-      const toWrite = this.buf.slice(0, leftover)
-      this.buf = this.buf.slice(leftover)
-      // process._rawDebug('writing ' + toWrite.length)
-      this._write(toWrite, cb)
+      let toWrite = this.buf.slice(0, leftover)
+      let toWriteBytes = Buffer.byteLength(toWrite)
+      if (toWriteBytes <= leftover) {
+        this.buf = this.buf.slice(leftover)
+        // process._rawDebug('writing ' + toWrite.length)
+        this._write(toWrite, cb)
+      } else {
+        // multi-byte utf-8
+        this._flushSync()
+        Atomics.store(this._state, READ_INDEX, 0)
+        Atomics.store(this._state, WRITE_INDEX, 0)
+
+        // Find a toWrite length that fits the buffer
+        // it must exists as the buffer is at least 4 bytes length
+        // and the max utf-8 length for a char is 4 bytes.
+        while (toWriteBytes > this.buf.length) {
+          leftover = leftover / 2
+          toWrite = this.buf.slice(0, leftover)
+          toWriteBytes = Buffer.byteLength(toWrite)
+        }
+        this.buf = this.buf.slice(leftover)
+        this._write(toWrite, cb)
+      }
     }
   }
 
