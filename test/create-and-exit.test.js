@@ -3,7 +3,7 @@
 const { test } = require('tap')
 const { fork } = require('child_process')
 const { join } = require('path')
-const { readFile } = require('fs/promises')
+const { readFile } = require('fs').promises
 const { file } = require('./helper')
 const { once } = require('events')
 
