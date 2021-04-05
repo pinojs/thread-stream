@@ -149,7 +149,6 @@ class ThreadStream extends EventEmitter {
   write (data) {
     if (!this.ready || this.flushing) {
       this.buf += data
-      // TODO if this.flushing, we must follow highWaterMark
       return this._hasSpace()
     }
 
