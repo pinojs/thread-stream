@@ -31,4 +31,18 @@ test('emit error if thread exits', async function (t) {
 
   const [err] = await once(stream, 'error')
   t.equal(err.message, 'The worker thread exited')
+
+  try {
+    stream.write('noop')
+    t.fail('unreacheable')
+  } catch (err) {
+    t.equal(err.message, 'the worker has exited')
+  }
+
+  try {
+    stream.write('noop')
+    t.fail('unreacheable')
+  } catch (err) {
+    t.equal(err.message, 'the worker has exited')
+  }
 })

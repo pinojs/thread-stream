@@ -106,6 +106,7 @@ class ThreadStream extends EventEmitter {
     this.ready = false
     this.ending = false
     this.needDrain = false
+    this.closed = false
 
     this.buf = ''
 
@@ -124,6 +125,7 @@ class ThreadStream extends EventEmitter {
     })
 
     this.worker.on('exit', (code) => {
+      this.closed = true
       setImmediate(() => {
         if (code === 0) {
           this.emit('close')
@@ -151,6 +153,10 @@ class ThreadStream extends EventEmitter {
   }
 
   write (data) {
+    if (this.closed) {
+      throw new Error('the worker has exited')
+    }
+
     if (!this.ready || this.flushing) {
       this.buf += data
       return this._hasSpace()
@@ -171,6 +177,10 @@ class ThreadStream extends EventEmitter {
   }
 
   end () {
+    if (this.closed) {
+      throw new Error('the worker has exited')
+    }
+
     if (!this.ready) {
       this.once('ready', this.end.bind(this))
       return
@@ -196,6 +206,10 @@ class ThreadStream extends EventEmitter {
   }
 
   flush (cb) {
+    if (this.closed) {
+      throw new Error('the worker has exited')
+    }
+
     // TODO write all .buf
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
     // process._rawDebug(`(flush) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
@@ -264,6 +278,10 @@ class ThreadStream extends EventEmitter {
   }
 
   flushSync () {
+    if (this.closed) {
+      throw new Error('the worker has exited')
+    }
+
     this._writeSync()
     this._flushSync()
   }
