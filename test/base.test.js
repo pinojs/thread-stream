@@ -238,3 +238,47 @@ test('flushSync sync=false', function (t) {
     })
   })
 })
+
+test('flushSync on ready if sync=true', function (t) {
+  t.plan(4)
+
+  const dest = file()
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'to-file.js'),
+    workerData: { dest },
+    sync: true
+  })
+
+  stream.on('ready', () => {
+    readFile(dest, 'utf8', (err, data) => {
+      t.error(err)
+      t.equal(data, 'hello world\nsomething else\n')
+      stream.end()
+    })
+  })
+
+  t.ok(stream.write('hello world\n'))
+  t.ok(stream.write('something else\n'))
+})
+
+test('flush on ready if sync=false', function (t) {
+  t.plan(4)
+
+  const dest = file()
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'to-file.js'),
+    workerData: { dest },
+    sync: false
+  })
+
+  stream.on('ready', () => {
+    readFile(dest, 'utf8', (err, data) => {
+      t.error(err)
+      t.equal(data, 'hello world\nsomething else\n')
+      stream.end()
+    })
+  })
+
+  t.ok(stream.write('hello world\n'))
+  t.ok(stream.write('something else\n'))
+})
