@@ -112,8 +112,19 @@ class ThreadStream extends EventEmitter {
     this.worker.on('message', (msg) => {
       switch (msg.code) {
         case 'READY':
-          this.ready = true
-          this.emit('ready')
+          if (this._sync) {
+            this.ready = true
+            this.flushSync()
+            this.emit('ready')
+          } else {
+            this.once('drain', function () {
+              this.flush(() => {
+                this.ready = true
+                this.emit('ready')
+              })
+            })
+            nextFlush(this)
+          }
           break
         case 'FINISH':
           this.emit('finish')
