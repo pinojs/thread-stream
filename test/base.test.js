@@ -7,7 +7,7 @@ const { file } = require('./helper')
 const ThreadStream = require('..')
 
 test('base sync=true', function (t) {
-  t.plan(7)
+  t.plan(9)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -26,6 +26,7 @@ test('base sync=true', function (t) {
 
   t.ok(stream.write('hello world\n'))
   t.ok(stream.write('something else\n'))
+  t.ok(stream.writable)
 
   stream.end()
 
@@ -37,6 +38,7 @@ test('base sync=true', function (t) {
   })
 
   stream.on('close', () => {
+    t.notOk(stream.writable)
     t.pass('close emitted')
   })
 })

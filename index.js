@@ -333,6 +333,10 @@ class ThreadStream extends EventEmitter {
   ref () {
     this.worker.ref()
   }
+
+  get writable () {
+    return !this.closed
+  }
 }
 
 module.exports = ThreadStream
