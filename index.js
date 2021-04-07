@@ -123,9 +123,13 @@ class ThreadStream extends EventEmitter {
       }
     })
 
-    this.worker.on('exit', () => {
+    this.worker.on('exit', (code) => {
       setImmediate(() => {
-        this.emit('close')
+        if (code === 0) {
+          this.emit('close')
+        } else {
+          this.emit('error', new Error('The worker thread exited'))
+        }
       })
     })
   }

@@ -6,6 +6,7 @@ const { join } = require('path')
 const { readFile } = require('fs').promises
 const { file } = require('./helper')
 const { once } = require('events')
+const ThreadStream = require('..')
 
 test('exits with 0', async function (t) {
   const dest = file()
@@ -16,4 +17,18 @@ test('exits with 0', async function (t) {
 
   const data = await readFile(dest, 'utf8')
   t.equal(data, 'hello world\n')
+})
+
+test('emit error if thread exits', async function (t) {
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'exit.js'),
+    sync: true
+  })
+
+  stream.on('ready', function () {
+    stream.write('hello world\n')
+  })
+
+  const [err] = await once(stream, 'error')
+  t.equal(err.message, 'The worker thread exited')
 })
