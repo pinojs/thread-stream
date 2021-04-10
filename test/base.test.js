@@ -5,6 +5,8 @@ const { join } = require('path')
 const { readFile } = require('fs')
 const { file } = require('./helper')
 const ThreadStream = require('..')
+const { MessageChannel } = require('worker_threads')
+const { once } = require('events')
 
 test('base sync=true', function (t) {
   t.plan(9)
@@ -283,4 +285,28 @@ test('flush on ready if sync=false', function (t) {
 
   t.ok(stream.write('hello world\n'))
   t.ok(stream.write('something else\n'))
+})
+
+test('pass down MessagePorts', async function (t) {
+  t.plan(3)
+
+  const { port1, port2 } = new MessageChannel()
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'port.js'),
+    workerData: { port: port1 },
+    workerOpts: {
+      transferList: [port1]
+    },
+    sync: false
+  })
+  t.teardown(() => {
+    stream.end()
+  })
+
+  t.ok(stream.write('hello world\n'))
+  t.ok(stream.write('something else\n'))
+
+  const [strings] = await once(port2, 'message')
+
+  t.equal(strings, 'hello world\nsomething else\n')
 })

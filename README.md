@@ -19,7 +19,8 @@ const { join } = require('path')
 const stream = new ThreadStream({
   filename: join(__dirname, 'worker.js'),
   workerData: { dest },
-  sync: false // default
+  workerOpts: {}, // Other options to be passed to Worker
+  sync: false, // default
 })
 
 stream.write('hello')

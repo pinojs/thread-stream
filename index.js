@@ -16,6 +16,7 @@ function createWorker (stream, opts) {
   const toExecute = join(__dirname, 'lib', 'worker.js')
 
   const worker = new Worker(toExecute, {
+    ...opts.workerOpts,
     workerData: {
       filename: filename.indexOf('file://') === 0
         ? filename
