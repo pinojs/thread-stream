@@ -307,7 +307,7 @@ class ThreadStream extends EventEmitter {
 
     const writeIndex = Atomics.load(this._state, WRITE_INDEX)
 
-    let spins = 10
+    let spins = 0
 
     // TODO handle deadlock
     while (true) {
