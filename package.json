@@ -13,7 +13,7 @@
   },
   "scripts": {
     "test": "standard && tap --no-check-coverage test/*.test.*js",
-    "test:ci": "standard && tap \"test/**/*.test.*js\" --coverage-report=lcovonly",
+    "test:ci": "standard && tap \"test/**/*.test.*js\" --no-check-coverage --coverage-report=lcovonly",
     "prepare": "husky install"
   },
   "repository": {
