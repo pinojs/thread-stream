@@ -128,9 +128,6 @@ class ThreadStream extends EventEmitter {
             nextFlush(this)
           }
           break
-        case 'FINISH':
-          this.emit('finish')
-          break
         default:
           throw new Error('this should not happen: ' + msg.code)
       }
@@ -210,10 +207,18 @@ class ThreadStream extends EventEmitter {
 
     this.flushSync()
 
+    const read = Atomics.load(this._state, READ_INDEX)
+
     // process._rawDebug('writing index')
     Atomics.store(this._state, WRITE_INDEX, -1)
     // process._rawDebug(`(end) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
     Atomics.notify(this._state, WRITE_INDEX)
+
+    // Wait for the process to complete
+    Atomics.wait(this._state, READ_INDEX, read)
+    process.nextTick(() => {
+      this.emit('finish')
+    })
     // process._rawDebug('end finished...')
   }
 
