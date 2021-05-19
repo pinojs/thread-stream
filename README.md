@@ -58,6 +58,10 @@ async function run (opts) {
 module.exports = run
 ```
 
+Make sure that the stream emits `'close'` when the stream completes.
+This can usually be achieved by passing the [`autoDestroy: true`](https://nodejs.org/api/stream.html#stream_new_stream_writable_options)
+flag your stream classes.
+
 ## License
 
 MIT
