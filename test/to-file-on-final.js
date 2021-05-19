@@ -6,6 +6,7 @@ const { Writable } = require('stream')
 function run (opts) {
   let data = ''
   return new Writable({
+    autoDestroy: true,
     write (chunk, enc, cb) {
       data += chunk.toString()
       cb()
