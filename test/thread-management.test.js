@@ -86,7 +86,63 @@ test('emit error if thread have unhandledRejection', async function (t) {
   })
 
   const [err] = await once(stream, 'error')
-  t.equal(err.message, 'The worker thread exited')
+  t.equal(err.message, 'kaboom')
+
+  try {
+    stream.write('noop')
+    t.fail('unreacheable')
+  } catch (err) {
+    t.equal(err.message, 'the worker has exited')
+  }
+
+  try {
+    stream.write('noop')
+    t.fail('unreacheable')
+  } catch (err) {
+    t.equal(err.message, 'the worker has exited')
+  }
+})
+
+test('emit error if worker stream emit error', async function (t) {
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'error.js'),
+    sync: true
+  })
+
+  stream.on('ready', function () {
+    stream.write('hello world\n')
+  })
+
+  const [err] = await once(stream, 'error')
+  t.equal(err.message, 'kaboom')
+
+  try {
+    stream.write('noop')
+    t.fail('unreacheable')
+  } catch (err) {
+    t.equal(err.message, 'the worker has exited')
+  }
+
+  try {
+    stream.write('noop')
+    t.fail('unreacheable')
+  } catch (err) {
+    t.equal(err.message, 'the worker has exited')
+  }
+})
+
+test('emit error if thread have uncaughtException', async function (t) {
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'uncaughtException.js'),
+    sync: true
+  })
+
+  stream.on('ready', function () {
+    stream.write('hello world\n')
+  })
+
+  const [err] = await once(stream, 'error')
+  t.equal(err.message, 'kaboom')
 
   try {
     stream.write('noop')
