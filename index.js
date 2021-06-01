@@ -128,6 +128,15 @@ class ThreadStream extends EventEmitter {
             nextFlush(this)
           }
           break
+        case 'ERROR':
+          this.closed = true
+          // TODO only remove our own
+          this.worker.removeAllListeners('exit')
+          this.worker.terminate().then(null, () => {})
+          process.nextTick(() => {
+            this.emit('error', msg.err)
+          })
+          break
         default:
           throw new Error('this should not happen: ' + msg.code)
       }
@@ -136,11 +145,10 @@ class ThreadStream extends EventEmitter {
     this.worker.on('exit', (code) => {
       this.closed = true
       setImmediate(() => {
-        if (code === 0) {
-          this.emit('close')
-        } else {
+        if (code !== 0) {
           this.emit('error', new Error('The worker thread exited'))
         }
+        this.emit('close')
       })
     })
   }
