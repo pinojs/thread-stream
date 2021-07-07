@@ -158,3 +158,16 @@ test('emit error if thread have uncaughtException', async function (t) {
     t.equal(err.message, 'the worker has exited')
   }
 })
+
+test('close the work if out of scope on gc', { skip: !global.WeakRef }, async function (t) {
+  const dest = file()
+  const child = fork(join(__dirname, 'close-on-gc.js'), [dest], {
+    execArgv: ['--expose-gc']
+  })
+
+  const [code] = await once(child, 'exit')
+  t.equal(code, 0)
+
+  const data = await readFile(dest, 'utf8')
+  t.equal(data, 'hello world\n')
+})

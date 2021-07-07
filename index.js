@@ -10,6 +10,25 @@ const {
   READ_INDEX
 } = require('./lib/indexes')
 
+const WeakRef = global.WeakRef || class FakeWeakRef {
+  constructor (value) {
+    this._value = value
+  }
+
+  deref () {
+    return this._value
+  }
+}
+
+const FinalizationRegistry = global.FinalizationRegistry || class FakeFinalizationRegistry {
+  register () {}
+  unregister () {}
+}
+
+const registry = new FinalizationRegistry((worker) => {
+  worker.terminate()
+})
+
 function createWorker (stream, opts) {
   const { filename, workerData } = opts
 
@@ -26,6 +45,12 @@ function createWorker (stream, opts) {
       workerData
     }
   })
+
+  worker.stream = new WeakRef(stream)
+
+  worker.on('message', onWorkerMessage)
+  worker.on('exit', onWorkerExit)
+  registry.register(stream, worker)
 
   return worker
 }
@@ -90,6 +115,60 @@ function nextFlush (stream) {
   }
 }
 
+function onWorkerMessage (msg) {
+  const stream = this.stream.deref()
+  if (stream === undefined) {
+    // Terminate the worker.
+    this.terminate()
+    return
+  }
+
+  switch (msg.code) {
+    case 'READY':
+      if (stream._sync) {
+        stream.ready = true
+        stream.flushSync()
+        stream.emit('ready')
+      } else {
+        stream.once('drain', function () {
+          stream.flush(() => {
+            stream.ready = true
+            stream.emit('ready')
+          })
+        })
+        nextFlush(stream)
+      }
+      break
+    case 'ERROR':
+      stream.closed = true
+      // TODO only remove our own
+      stream.worker.removeAllListeners('exit')
+      stream.worker.terminate().then(null, () => {})
+      process.nextTick(() => {
+        stream.emit('error', msg.err)
+      })
+      break
+    default:
+      throw new Error('this should not happen: ' + msg.code)
+  }
+}
+
+function onWorkerExit (code) {
+  const stream = this.stream.deref()
+  if (stream === undefined) {
+    // Nothing to do, the worker already exit
+    return
+  }
+  registry.unregister(stream)
+  stream.closed = true
+  setImmediate(function () {
+    if (code !== 0) {
+      stream.emit('error', new Error('The worker thread exited'))
+    }
+    stream.emit('close')
+  })
+}
+
 class ThreadStream extends EventEmitter {
   constructor (opts = {}) {
     super()
@@ -110,47 +189,6 @@ class ThreadStream extends EventEmitter {
     this.closed = false
 
     this.buf = ''
-
-    this.worker.on('message', (msg) => {
-      switch (msg.code) {
-        case 'READY':
-          if (this._sync) {
-            this.ready = true
-            this.flushSync()
-            this.emit('ready')
-          } else {
-            this.once('drain', function () {
-              this.flush(() => {
-                this.ready = true
-                this.emit('ready')
-              })
-            })
-            nextFlush(this)
-          }
-          break
-        case 'ERROR':
-          this.closed = true
-          // TODO only remove our own
-          this.worker.removeAllListeners('exit')
-          this.worker.terminate().then(null, () => {})
-          process.nextTick(() => {
-            this.emit('error', msg.err)
-          })
-          break
-        default:
-          throw new Error('this should not happen: ' + msg.code)
-      }
-    })
-
-    this.worker.on('exit', (code) => {
-      this.closed = true
-      setImmediate(() => {
-        if (code !== 0) {
-          this.emit('error', new Error('The worker thread exited'))
-        }
-        this.emit('close')
-      })
-    })
   }
 
   _write (data, cb) {
