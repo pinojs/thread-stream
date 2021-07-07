@@ -10,7 +10,7 @@ const {
   READ_INDEX
 } = require('./lib/indexes')
 
-const WeakRef = global.WeakRef || class FakeWeakRef {
+class FakeWeakRef {
   constructor (value) {
     this._value = value
   }
@@ -24,6 +24,8 @@ const FinalizationRegistry = global.FinalizationRegistry || class FakeFinalizati
   register () {}
   unregister () {}
 }
+
+const WeakRef = global.WeakRef || FakeWeakRef
 
 const registry = new FinalizationRegistry((worker) => {
   worker.terminate()
@@ -46,7 +48,9 @@ function createWorker (stream, opts) {
     }
   })
 
-  worker.stream = new WeakRef(stream)
+  // We keep a strong reference for now,
+  // we need to start writing first
+  worker.stream = new FakeWeakRef(stream)
 
   worker.on('message', onWorkerMessage)
   worker.on('exit', onWorkerExit)
@@ -125,6 +129,9 @@ function onWorkerMessage (msg) {
 
   switch (msg.code) {
     case 'READY':
+      // Replace the FakeWeakRef with a
+      // proper one.
+      this.stream = new WeakRef(stream)
       if (stream._sync) {
         stream.ready = true
         stream.flushSync()
