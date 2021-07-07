@@ -62,6 +62,8 @@ Make sure that the stream emits `'close'` when the stream completes.
 This can usually be achieved by passing the [`autoDestroy: true`](https://nodejs.org/api/stream.html#stream_new_stream_writable_options)
 flag your stream classes.
 
+The underlining worker is automatically closed if the stream is garbage collected.
+
 ## License
 
 MIT
