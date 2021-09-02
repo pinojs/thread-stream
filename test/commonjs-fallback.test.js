@@ -27,4 +27,3 @@ test('yarn module resolution', { skip: !isYarnPnp }, t => {
 
   stream.end()
 })
-
