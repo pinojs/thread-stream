@@ -64,6 +64,28 @@ flag your stream classes.
 
 The underlining worker is automatically closed if the stream is garbage collected.
 
+
+### External modules
+
+You may use this module within compatible external modules, that exports the `worker.js` interface.
+
+```js
+const ThreadStream = require('thread-stream')
+
+const modulePath = require.resolve('pino-elasticsearch')
+
+const stream = new ThreadStream({
+  filename: modulePath,
+  workerData: { node: 'http://localhost:9200' }
+})
+
+stream.write('log to elasticsearch!')
+stream.flushSync()
+stream.end()
+```
+
+This module works with `yarn` in PnP (plug'n play) mode too!
+
 ## License
 
 MIT
