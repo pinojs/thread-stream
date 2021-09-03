@@ -48,8 +48,9 @@ jobs:
         run: |
           npm install -g yarn
           yarn set version berry
-          echo "nodeLinker: pnp" >> .yarnrc.yml 
-          echo "pnpMode: loose" >> .yarnrc.yml 
+          echo "nodeLinker: pnp" >> .yarnrc.yml
+          echo "pnpMode: loose" >> .yarnrc.yml
+          yarn add -D pino-elasticsearch@^6.0.0
           yarn install
         env:
           # needed due the yarn.lock file in repository's .gitignore
