@@ -10,6 +10,9 @@ const {
   READ_INDEX
 } = require('./lib/indexes')
 
+// V8 limit for string size
+const MAX_STRING = Math.pow(2, 29)
+
 class FakeWeakRef {
   constructor (value) {
     this._value = value
@@ -221,6 +224,10 @@ class ThreadStream extends EventEmitter {
 
     if (!this.ready || this.flushing) {
       this.buf += data
+      if (this.buf.length + data.length >= MAX_STRING) {
+        this._writeSync()
+        this.flushing = true // we are still flushing
+      }
       return this._hasSpace()
     }
 
