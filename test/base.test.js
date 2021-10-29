@@ -2,7 +2,7 @@
 
 const { test } = require('tap')
 const { join } = require('path')
-const { readFile, stat } = require('fs')
+const { readFile } = require('fs')
 const { file } = require('./helper')
 const ThreadStream = require('..')
 const { MessageChannel } = require('worker_threads')
@@ -309,40 +309,4 @@ test('pass down MessagePorts', async function (t) {
   const [strings] = await once(port2, 'message')
 
   t.equal(strings, 'hello world\nsomething else\n')
-})
-
-test('enormous string writing', function (t) {
-  t.setTimeout(30000)
-  const dest = file()
-  const stream = new ThreadStream({
-    filename: join(__dirname, 'to-file.js'),
-    workerData: { dest },
-    sync: false
-  })
-
-  let length = 0
-
-  stream.on('ready', () => {
-    t.pass('ready emitted')
-
-    const buf = Buffer.alloc(1024).fill('x').toString() // 1 MB
-
-    for (let i = 0; i < 1024 * 1024; i++) {
-      length += buf.length
-      stream.write(buf)
-    }
-
-    stream.once('drain', () => {
-      t.pass('drain')
-      stream.end()
-    })
-  })
-
-  stream.on('close', () => {
-    stat(dest, (err, f) => {
-      t.error(err)
-      t.equal(f.size, length)
-      t.end()
-    })
-  })
 })
