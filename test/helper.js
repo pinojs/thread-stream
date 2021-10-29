@@ -4,6 +4,7 @@ const { join } = require('path')
 const { tmpdir } = require('os')
 const { unlinkSync } = require('fs')
 const why = require('why-is-node-running')
+const t = require('tap')
 
 const files = []
 let count = 0
@@ -15,15 +16,16 @@ function file () {
 }
 
 process.on('beforeExit', () => {
-  console.log('unlink files')
+  t.comment('unlink files')
   for (const file of files) {
     try {
+      t.comment(`unliking ${file}`)
       unlinkSync(file)
     } catch (e) {
       console.log(e)
     }
   }
-  console.log('unlink completed')
+  t.comment('unlink completed')
 })
 
 module.exports.file = file
