@@ -60,8 +60,20 @@ function createWorker (stream, opts) {
 }
 
 function drain (stream) {
-  stream.needDrain = false
-  stream.emit('drain')
+  if (stream.ready) {
+    stream.needDrain = false
+    stream.emit('drain')
+  } else {
+    stream.flush(() => {
+      stream.ready = true
+      stream.emit('ready')
+
+      if (stream.needDrain) {
+        stream.needDrain = false
+        stream.emit('drain')
+      }
+    })
+  }
 }
 
 function nextFlush (stream) {
@@ -137,12 +149,6 @@ function onWorkerMessage (msg) {
         stream.flushSync()
         stream.emit('ready')
       } else {
-        stream.once('drain', function () {
-          stream.flush(() => {
-            stream.ready = true
-            stream.emit('ready')
-          })
-        })
         nextFlush(stream)
       }
       break
