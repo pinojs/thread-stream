@@ -32,6 +32,9 @@ const FinalizationRegistry = global.FinalizationRegistry || class FakeFinalizati
 const WeakRef = global.WeakRef || FakeWeakRef
 
 const registry = new FinalizationRegistry((worker) => {
+  if (worker.exited) {
+    return
+  }
   worker.terminate()
 })
 
@@ -152,6 +155,7 @@ function onWorkerMessage (msg) {
       break
     case 'ERROR':
       stream.closed = true
+      stream.worker.exited = true
       // TODO only remove our own
       stream.worker.removeAllListeners('exit')
       stream.worker.terminate().then(null, () => {})
@@ -172,6 +176,7 @@ function onWorkerExit (code) {
   }
   registry.unregister(stream)
   stream.closed = true
+  stream.worker.exited = true
   setImmediate(function () {
     if (code !== 0) {
       stream.emit('error', new Error('The worker thread exited'))
