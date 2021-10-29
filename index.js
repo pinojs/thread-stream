@@ -61,6 +61,10 @@ function createWorker (stream, opts) {
 
 function drain (stream) {
   if (stream.ready) {
+    if (stream.ending) {
+      stream._end()
+    }
+
     if (stream.needDrain) {
       stream.needDrain = false
       stream.emit('drain')
@@ -69,6 +73,10 @@ function drain (stream) {
     stream.flush(() => {
       stream.ready = true
       stream.emit('ready')
+
+      if (stream.ending) {
+        stream._end()
+      }
 
       if (stream.needDrain) {
         stream.needDrain = false
@@ -148,6 +156,10 @@ function onWorkerMessage (msg) {
         stream.ready = true
         stream.flushSync()
         stream.emit('ready')
+
+        if (stream.ending) {
+          stream._end()
+        }
       } else {
         nextFlush(stream)
       }
@@ -229,6 +241,10 @@ class ThreadStream extends EventEmitter {
       throw new Error('cannot write sync')
     }
 
+    if (this.ending) {
+      throw new Error('cannot write ended')
+    }
+
     if (!this.ready || this.flushing) {
       this.buf += data
       this.needDrain = !this._hasSpace()
@@ -255,22 +271,20 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker has exited')
     }
 
-    if (!this.ready) {
-      this.once('ready', this.end.bind(this))
-      return
-    }
-
-    if (this.flushing) {
-      this.needDrain = true
-      this.once('drain', this.end.bind(this))
-      return
-    }
-
     if (this.ending) {
       return
     }
     this.ending = true
+    this.needDrain = false
 
+    if (!this.ready || this.flushing) {
+      return
+    }
+
+    this._end()
+  }
+
+  _end () {
     this.flushSync()
 
     let read = Atomics.load(this._state, READ_INDEX)
