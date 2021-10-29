@@ -27,7 +27,7 @@ process.on('beforeExit', () => {
 
 function basic (text, filename) {
   test(text, function (t) {
-    t.plan(7)
+    t.plan(6)
 
     const dest = file()
     const stream = new ThreadStream({
@@ -36,16 +36,12 @@ function basic (text, filename) {
       sync: true
     })
 
-    stream.on('drain', () => {
-      t.pass('drain')
-    })
-
     stream.on('ready', () => {
       t.pass('ready emitted')
-    })
 
-    t.ok(stream.write('hello world\n'))
-    t.ok(stream.write('something else\n'))
+      t.ok(stream.write('hello world\n'))
+      t.ok(stream.write('something else\n'))
+    })
 
     stream.end()
 

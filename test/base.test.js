@@ -9,7 +9,7 @@ const { MessageChannel } = require('worker_threads')
 const { once } = require('events')
 
 test('base sync=true', function (t) {
-  t.plan(9)
+  t.plan(7)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -24,11 +24,11 @@ test('base sync=true', function (t) {
 
   stream.on('ready', () => {
     t.pass('ready emitted')
-  })
 
-  t.ok(stream.write('hello world\n'))
-  t.ok(stream.write('something else\n'))
-  t.ok(stream.writable)
+    t.ok(stream.write('hello world\n'))
+    t.ok(stream.write('something else\n'))
+    t.ok(stream.writable)
+  })
 
   stream.end()
 
@@ -134,7 +134,7 @@ test('overflow sync=false', function (t) {
 })
 
 test('over the bufferSize at startup', function (t) {
-  t.plan(8)
+  t.plan(7)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -144,17 +144,13 @@ test('over the bufferSize at startup', function (t) {
     sync: true
   })
 
-  stream.on('drain', () => {
-    t.pass('drain')
-  })
-
   stream.on('ready', () => {
     t.pass('ready emitted')
-  })
 
-  t.ok(stream.write('hello'))
-  t.notOk(stream.write(' world\n'))
-  t.notOk(stream.write('something else\n'))
+    t.ok(stream.write('hello'))
+    t.ok(stream.write(' world\n'))
+    t.ok(stream.write('something else\n'))
+  })
 
   stream.end()
 

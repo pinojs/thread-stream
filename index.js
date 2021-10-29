@@ -83,9 +83,7 @@ function nextFlush (stream) {
   if (leftover > 0) {
     if (stream.buf.length === 0) {
       stream.flushing = false
-      if (!stream.needDrain) {
-        // process._rawDebug('emitting drain')
-        stream.needDrain = true
+      if (stream.needDrain) {
         process.nextTick(drain, stream)
       }
       return
@@ -225,9 +223,14 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker has exited')
     }
 
+    if (this._sync && (!this.ready || this.flushing)) {
+      throw new Error('cannot write sync')
+    }
+
     if (!this.ready || this.flushing) {
       this.buf += data
-      return this._hasSpace()
+      this.needDrain = !this._hasSpace()
+      return !this.needDrain
     }
 
     if (this._sync) {
@@ -241,7 +244,8 @@ class ThreadStream extends EventEmitter {
     this.flushing = true
     setImmediate(nextFlush, this)
 
-    return this._hasSpace()
+    this.needDrain = !this._hasSpace()
+    return !this.needDrain
   }
 
   end () {
@@ -255,6 +259,7 @@ class ThreadStream extends EventEmitter {
     }
 
     if (this.flushing) {
+      this.needDrain = true
       this.once('drain', this.end.bind(this))
       return
     }
