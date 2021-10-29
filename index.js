@@ -61,8 +61,10 @@ function createWorker (stream, opts) {
 
 function drain (stream) {
   if (stream.ready) {
-    stream.needDrain = false
-    stream.emit('drain')
+    if (stream.needDrain) {
+      stream.needDrain = false
+      stream.emit('drain')
+    }
   } else {
     stream.flush(() => {
       stream.ready = true
