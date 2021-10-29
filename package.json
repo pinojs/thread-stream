@@ -9,10 +9,11 @@
     "husky": "^7.0.0",
     "sonic-boom": "^2.0.1",
     "standard": "^16.0.3",
-    "tap": "^15.0.0"
+    "tap": "^15.0.0",
+    "why-is-node-running": "^2.2.0"
   },
   "scripts": {
-    "test": "standard && tap --no-check-coverage test/*.test.*js",
+    "test": "standard && tap test/*.test.*js",
     "test:ci": "standard && tap \"test/**/*.test.*js\" --no-check-coverage --coverage-report=lcovonly",
     "test:yarn": "tap \"test/**/*.test.js\" --no-check-coverage",
     "prepare": "husky install"

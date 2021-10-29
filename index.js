@@ -129,6 +129,7 @@ function nextFlush (stream) {
 function onWorkerMessage (msg) {
   const stream = this.stream.deref()
   if (stream === undefined) {
+    this.exited = true
     // Terminate the worker.
     this.terminate()
     return
