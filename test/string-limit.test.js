@@ -20,8 +20,9 @@ let length = 0
 stream.on('ready', () => {
   t.pass('ready emitted')
 
-  const buf = Buffer.alloc(1024).fill('x').toString() // 1 MB
+  const buf = Buffer.alloc(1024).fill('x').toString() // 1 KB
 
+  // This writes 1 GB of data
   for (let i = 0; i < 1024 * 1024; i++) {
     length += buf.length
     stream.write(buf)
