@@ -312,6 +312,7 @@ test('pass down MessagePorts', async function (t) {
 })
 
 test('enormous string writing', function (t) {
+  t.setTimeout(30000)
   const dest = file()
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-file.js'),

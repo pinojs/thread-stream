@@ -9,9 +9,10 @@ const {
   WRITE_INDEX,
   READ_INDEX
 } = require('./lib/indexes')
+const buffer = require('buffer')
 
 // V8 limit for string size
-const MAX_STRING = Math.pow(2, 29)
+const MAX_STRING = buffer.constants.MAX_STRING_LENGTH
 
 class FakeWeakRef {
   constructor (value) {
