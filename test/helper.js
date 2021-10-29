@@ -14,6 +14,7 @@ function file () {
 }
 
 process.on('beforeExit', () => {
+  console.log('unlink files')
   for (const file of files) {
     try {
       unlinkSync(file)
@@ -21,6 +22,7 @@ process.on('beforeExit', () => {
       console.log(e)
     }
   }
+  console.log('unlink completed')
 })
 
 module.exports.file = file
