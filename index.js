@@ -229,6 +229,7 @@ class ThreadStream extends EventEmitter {
     }
 
     if (this.flushing && this.buf.length + data.length >= MAX_STRING) {
+      process._rawDebug('write: flushing')
       this._writeSync()
       this.flushing = true // we are still flushing
     }
