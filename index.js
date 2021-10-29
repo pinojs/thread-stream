@@ -9,6 +9,10 @@ const {
   WRITE_INDEX,
   READ_INDEX
 } = require('./lib/indexes')
+const buffer = require('buffer')
+
+// V8 limit for string size
+const MAX_STRING = buffer.constants.MAX_STRING_LENGTH
 
 class FakeWeakRef {
   constructor (value) {
@@ -28,6 +32,9 @@ const FinalizationRegistry = global.FinalizationRegistry || class FakeFinalizati
 const WeakRef = global.WeakRef || FakeWeakRef
 
 const registry = new FinalizationRegistry((worker) => {
+  if (worker.exited) {
+    return
+  }
   worker.terminate()
 })
 
@@ -122,6 +129,7 @@ function nextFlush (stream) {
 function onWorkerMessage (msg) {
   const stream = this.stream.deref()
   if (stream === undefined) {
+    this.exited = true
     // Terminate the worker.
     this.terminate()
     return
@@ -148,6 +156,7 @@ function onWorkerMessage (msg) {
       break
     case 'ERROR':
       stream.closed = true
+      stream.worker.exited = true
       // TODO only remove our own
       stream.worker.removeAllListeners('exit')
       stream.worker.terminate().then(null, () => {})
@@ -168,6 +177,7 @@ function onWorkerExit (code) {
   }
   registry.unregister(stream)
   stream.closed = true
+  stream.worker.exited = true
   setImmediate(function () {
     if (code !== 0) {
       stream.emit('error', new Error('The worker thread exited'))
@@ -217,6 +227,12 @@ class ThreadStream extends EventEmitter {
   write (data) {
     if (this.closed) {
       throw new Error('the worker has exited')
+    }
+
+    if (this.flushing && this.buf.length + data.length >= MAX_STRING) {
+      // process._rawDebug('write: flushing')
+      this._writeSync()
+      this.flushing = true // we are still flushing
     }
 
     if (!this.ready || this.flushing) {
