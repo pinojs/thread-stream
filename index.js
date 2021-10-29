@@ -223,12 +223,13 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker has exited')
     }
 
+    if (this.flushing && this.buf.length + data.length >= MAX_STRING) {
+      this._writeSync()
+      this.flushing = true // we are still flushing
+    }
+
     if (!this.ready || this.flushing) {
       this.buf += data
-      if (this.buf.length + data.length >= MAX_STRING) {
-        this._writeSync()
-        this.flushing = true // we are still flushing
-      }
       return this._hasSpace()
     }
 
