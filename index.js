@@ -254,7 +254,7 @@ class ThreadStream extends EventEmitter {
   }
 
   write (data) {
-    if (this.closed) {
+    if (this.destroyed) {
       throw new Error('the worker has exited')
     }
 
