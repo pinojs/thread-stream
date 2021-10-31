@@ -253,6 +253,10 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker has exited')
     }
 
+    if (this.ending) {
+      throw new Error('the worker is ending')
+    }
+
     if (this._sync) {
       if (!this.ready) {
         throw new Error('the worker is not ready')
