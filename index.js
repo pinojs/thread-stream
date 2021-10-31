@@ -7,8 +7,7 @@ const { pathToFileURL } = require('url')
 const { wait } = require('./lib/wait')
 const {
   WRITE_INDEX,
-  READ_INDEX,
-  READY_INDEX
+  READ_INDEX
 } = require('./lib/indexes')
 const buffer = require('buffer')
 const assert = require('assert')
@@ -82,17 +81,7 @@ function nextFlush (stream) {
     if (stream.buf.length === 0) {
       stream.flushing = false
 
-      if (!stream.ready) {
-        stream.flush(() => {
-          stream.ready = true
-          if (stream.ending) {
-            stream._end()
-          } else if (stream.needDrain) {
-            drain(stream)
-          }
-        })
-        return
-      } else if (stream.ending) {
+      if (stream.ending) {
         stream._end()
       } else if (stream.needDrain) {
         process.nextTick(drain, stream)
@@ -191,11 +180,11 @@ class ThreadStream extends EventEmitter {
     this._data = Buffer.from(this._dataBuf)
     this._sync = opts.sync || false
     this.worker = createWorker(this, opts)
-    this.ready = false
     this.ending = false
     this.ended = false
     this.needDrain = false
     this.destroyed = false
+    this.flushing = !this._sync
 
     this.buf = ''
   }
@@ -258,7 +247,7 @@ class ThreadStream extends EventEmitter {
 
     this.buf += data
 
-    if (this.ready && !this.flushing) {
+    if (!this.flushing) {
       this.flushing = true
       setImmediate(nextFlush, this)
     }
@@ -277,7 +266,7 @@ class ThreadStream extends EventEmitter {
   }
 
   _end () {
-    if (this.ended || !this.ending || !this.ready || this.flushing) {
+    if (this.ended || !this.ending || this.flushing) {
       return
     }
     this.ended = true
@@ -341,15 +330,6 @@ class ThreadStream extends EventEmitter {
       }
     }
     this.flushing = false
-
-    while (!this.ready) {
-      const ready = Atomics.load(this._state, READY_INDEX)
-      if (!ready) {
-        Atomics.wait(this._state, READY_INDEX, 0, 1000)
-      } else {
-        this.ready = true
-      }
-    }
 
     while (this.buf.length !== 0) {
       const writeIndex = Atomics.load(this._state, WRITE_INDEX)
