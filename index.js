@@ -436,7 +436,7 @@ class ThreadStream extends EventEmitter {
   }
 
   get writable () {
-    return !this.closed
+    return !this.closed && !this.ending
   }
 }
 
