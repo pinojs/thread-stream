@@ -10,6 +10,7 @@ const {
   READ_INDEX
 } = require('./lib/indexes')
 const buffer = require('buffer')
+const assert = require('assert')
 
 // V8 limit for string size
 const MAX_STRING = buffer.constants.MAX_STRING_LENGTH
@@ -248,9 +249,11 @@ class ThreadStream extends EventEmitter {
     }
 
     if (this._sync) {
-      if (!this.ready || this.flushing) {
+      if (!this.ready) {
         throw new Error('the worker is not ready')
       }
+
+      assert(!this.flushing)
 
       this.buf += data
       this._writeSync()
