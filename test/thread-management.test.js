@@ -25,7 +25,7 @@ test('emit error if thread exits', async function (t) {
     sync: true
   })
 
-  stream.on('ready', function () {
+  queueMicrotask(() => {
     stream.write('hello world\n')
   })
 
@@ -53,7 +53,7 @@ test('emit error if thread exits', async function (t) {
     sync: true
   })
 
-  stream.on('ready', function () {
+  queueMicrotask(() => {
     stream.write('hello world\n')
   })
 
@@ -81,7 +81,7 @@ test('emit error if thread have unhandledRejection', async function (t) {
     sync: true
   })
 
-  stream.on('ready', function () {
+  queueMicrotask(() => {
     stream.write('hello world\n')
   })
 
@@ -109,7 +109,7 @@ test('emit error if worker stream emit error', async function (t) {
     sync: true
   })
 
-  stream.on('ready', function () {
+  queueMicrotask(() => {
     stream.write('hello world\n')
   })
 
@@ -137,7 +137,7 @@ test('emit error if thread have uncaughtException', async function (t) {
     sync: true
   })
 
-  stream.on('ready', function () {
+  queueMicrotask(() => {
     stream.write('hello world\n')
   })
 

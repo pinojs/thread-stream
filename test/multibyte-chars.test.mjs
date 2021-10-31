@@ -16,17 +16,15 @@ test('break up utf8 multibyte (sync)', (t) => {
     sync: true
   })
 
-  stream.on('ready', function () {
-    stream.write(longString)
-    stream.end()
-  })
-
   stream.on('finish', () => {
     readFile(dest, 'utf8', (err, data) => {
       t.error(err)
       t.equal(data, longString)
     })
   })
+
+  stream.write(longString)
+  stream.end()
 })
 
 test('break up utf8 multibyte (async)', (t) => {
@@ -41,15 +39,13 @@ test('break up utf8 multibyte (async)', (t) => {
     sync: false
   })
 
-  stream.on('ready', function () {
-    stream.write(longString)
-    stream.end()
-  })
-
   stream.on('finish', () => {
     readFile(dest, 'utf8', (err, data) => {
       t.error(err)
       t.equal(data, longString)
     })
   })
+
+  stream.write(longString)
+  stream.end()
 })

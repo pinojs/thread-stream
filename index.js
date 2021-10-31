@@ -7,7 +7,8 @@ const { pathToFileURL } = require('url')
 const { wait } = require('./lib/wait')
 const {
   WRITE_INDEX,
-  READ_INDEX
+  READ_INDEX,
+  READY_INDEX
 } = require('./lib/indexes')
 const buffer = require('buffer')
 const assert = require('assert')
@@ -84,7 +85,6 @@ function nextFlush (stream) {
       if (!stream.ready) {
         stream.flush(() => {
           stream.ready = true
-          stream.emit('ready')
           if (stream.ending) {
             stream._end()
           } else if (stream.needDrain) {
@@ -155,16 +155,7 @@ function onWorkerMessage (msg) {
       // Replace the FakeWeakRef with a
       // proper one.
       this.stream = new WeakRef(stream)
-      if (stream._sync) {
-        stream.ready = true
-        stream.flushSync()
-        stream.emit('ready')
-        if (stream.ending) {
-          stream._end()
-        }
-      } else {
-        nextFlush(stream)
-      }
+      nextFlush(stream)
       break
     case 'ERROR':
       stream._destroy(msg.err)
@@ -243,11 +234,6 @@ class ThreadStream extends EventEmitter {
     return true
   }
 
-  _hasSpace () {
-    const current = Atomics.load(this._state, WRITE_INDEX)
-    return this._data.length - this.buf.length - current > 0
-  }
-
   write (data) {
     if (this.destroyed) {
       throw new Error('the worker has exited')
@@ -258,37 +244,26 @@ class ThreadStream extends EventEmitter {
     }
 
     if (this._sync) {
-      if (!this.ready) {
-        throw new Error('the worker is not ready')
-      }
-
       assert(!this.flushing)
 
-      this.buf += data
+      this.buf = data
       this._writeSync()
 
       return true
     }
 
-    if (this.flushing && this.buf.length + data.length >= MAX_STRING) {
-      // process._rawDebug('write: flushing')
+    if (this.buf.length + data.length >= MAX_STRING) {
       this._writeSync()
-      this.flushing = true // we are still flushing
     }
 
-    if (!this.ready || this.flushing) {
-      this.buf += data
-      this.needDrain = !this._hasSpace()
-      return !this.needDrain
+    this.buf += data
+
+    if (this.ready && !this.flushing) {
+      this.flushing = true
+      setImmediate(nextFlush, this)
     }
 
-    assert(!this.buf)
-
-    this.buf = data
-    this.flushing = true
-    setImmediate(nextFlush, this)
-
-    this.needDrain = !this._hasSpace()
+    this.needDrain = this._data.length - this.buf.length - Atomics.load(this._state, WRITE_INDEX) <= 0
     return !this.needDrain
   }
 
@@ -366,6 +341,15 @@ class ThreadStream extends EventEmitter {
       }
     }
     this.flushing = false
+
+    while (!this.ready) {
+      const ready = Atomics.load(this._state, READY_INDEX)
+      if (!ready) {
+        Atomics.wait(this._state, READY_INDEX, 0, 1000)
+      } else {
+        this.ready = true
+      }
+    }
 
     while (this.buf.length !== 0) {
       const writeIndex = Atomics.load(this._state, WRITE_INDEX)

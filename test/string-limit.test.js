@@ -17,20 +17,6 @@ const stream = new ThreadStream({
 
 let length = 0
 
-stream.on('ready', () => {
-  t.pass('ready emitted')
-
-  const buf = Buffer.alloc(1024).fill('x').toString() // 1 KB
-
-  // This writes 1 GB of data
-  for (let i = 0; i < 1024 * 1024; i++) {
-    length += buf.length
-    stream.write(buf)
-  }
-
-  stream.end()
-})
-
 stream.on('close', () => {
   stat(dest, (err, f) => {
     t.error(err)
@@ -38,3 +24,13 @@ stream.on('close', () => {
     t.end()
   })
 })
+
+const buf = Buffer.alloc(1024).fill('x').toString() // 1 KB
+
+// This writes 1 GB of data
+for (let i = 0; i < 1024 * 1024; i++) {
+  length += buf.length
+  stream.write(buf)
+}
+
+stream.end()

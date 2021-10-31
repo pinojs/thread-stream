@@ -15,16 +15,14 @@ function setup () {
 
   worker = stream.worker
 
-  stream.on('ready', function () {
-    stream.write('hello')
-    stream.write(' ')
-    stream.write('world\n')
-    stream.flushSync()
-    stream.unref()
+  stream.write('hello')
+  stream.write(' ')
+  stream.write('world\n')
+  stream.flushSync()
+  stream.unref()
 
-    // the stream object goes out of scope here
-    setImmediate(gc) // eslint-disable-line
-  })
+  // the stream object goes out of scope here
+  setImmediate(gc) // eslint-disable-line
 }
 
 setup()

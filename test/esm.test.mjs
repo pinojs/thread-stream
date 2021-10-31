@@ -7,22 +7,13 @@ import { file } from './helper.js'
 
 function basic (text, filename) {
   test(text, function (t) {
-    t.plan(6)
+    t.plan(5)
 
     const dest = file()
     const stream = new ThreadStream({
       filename,
       workerData: { dest },
       sync: true
-    })
-
-    stream.on('ready', () => {
-      t.pass('ready emitted')
-
-      t.ok(stream.write('hello world\n'))
-      t.ok(stream.write('something else\n'))
-
-      stream.end()
     })
 
     stream.on('finish', () => {
@@ -35,6 +26,11 @@ function basic (text, filename) {
     stream.on('close', () => {
       t.pass('close emitted')
     })
+
+    t.ok(stream.write('hello world\n'))
+    t.ok(stream.write('something else\n'))
+
+    stream.end()
   })
 }
 
