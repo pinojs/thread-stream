@@ -22,8 +22,9 @@ test('yarn module resolution', { skip: !isYarnPnp }, t => {
     t.equal(err.message, 'Missing node(s) option', 'module custom error')
   })
 
-  t.ok(stream.write('hello world\n'))
-  t.ok(stream.writable)
-
-  stream.end()
+  stream.on('ready', () => {
+    t.ok(stream.write('hello world\n'))
+    t.ok(stream.writable)
+    stream.end()
+  })
 })

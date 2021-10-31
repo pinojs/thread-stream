@@ -282,6 +282,8 @@ class ThreadStream extends EventEmitter {
       return !this.needDrain
     }
 
+    assert(!this.buf)
+
     this.buf = data
     this.flushing = true
     setImmediate(nextFlush, this)
