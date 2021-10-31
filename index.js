@@ -167,14 +167,7 @@ function onWorkerMessage (msg) {
       }
       break
     case 'ERROR':
-      stream.closed = true
-      stream.worker.exited = true
-      // TODO only remove our own
-      stream.worker.removeAllListeners('exit')
-      stream.worker.terminate().then(null, () => {})
-      process.nextTick(() => {
-        stream.emit('error', msg.err)
-      })
+      stream._destroy(msg.err)
       break
     default:
       throw new Error('this should not happen: ' + msg.code)
@@ -188,13 +181,11 @@ function onWorkerExit (code) {
     return
   }
   registry.unregister(stream)
-  stream.closed = true
   stream.worker.exited = true
-  setImmediate(function () {
-    if (code !== 0) {
-      stream.emit('error', new Error('The worker thread exited'))
-    }
-    stream.emit('close')
+  stream.worker.off('exit', onWorkerExit)
+  stream.destroyed = true
+  setImmediate(() => {
+    stream._destroy(code !== 0 ? new Error('The worker thread exited') : null)
   })
 }
 
@@ -217,8 +208,33 @@ class ThreadStream extends EventEmitter {
     this.ended = false
     this.needDrain = false
     this.closed = false
+    this.destroyed = false
 
     this.buf = ''
+  }
+
+  _destroy (err) {
+    if (this.destroyed) {
+      return
+    }
+    this.destroyed = true
+    this.closed = true
+
+    if (err) {
+      this.emit('error', err)
+    }
+
+    if (!this.worker.exited) {
+      this.worker.terminate()
+        .catch(() => {})
+        .then(() => {
+          this.closed = true
+          this.emit('close')
+        })
+    } else {
+      this.closed = true
+      this.emit('close')
+    }
   }
 
   _write (data, cb) {
@@ -327,7 +343,7 @@ class ThreadStream extends EventEmitter {
     // process._rawDebug(`(flush) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
     wait(this._state, READ_INDEX, writeIndex, Infinity, (err, res) => {
       if (err) {
-        this.emit('error', err)
+        this._destroy(err)
         cb(err)
         return
       }
