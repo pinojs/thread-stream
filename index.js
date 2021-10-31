@@ -183,10 +183,7 @@ function onWorkerExit (code) {
   registry.unregister(stream)
   stream.worker.exited = true
   stream.worker.off('exit', onWorkerExit)
-  stream.destroyed = true
-  setImmediate(() => {
-    stream._destroy(code !== 0 ? new Error('The worker thread exited') : null)
-  })
+  stream._destroy(code !== 0 ? new Error('The worker thread exited') : null)
 }
 
 class ThreadStream extends EventEmitter {
@@ -232,8 +229,10 @@ class ThreadStream extends EventEmitter {
           this.emit('close')
         })
     } else {
-      this.closed = true
-      this.emit('close')
+      setImmediate(() => {
+        this.closed = true
+        this.emit('close')
+      })
     }
   }
 
@@ -292,7 +291,7 @@ class ThreadStream extends EventEmitter {
   }
 
   end () {
-    if (this.closed) {
+    if (this.destroyed) {
       throw new Error('the worker has exited')
     }
 
