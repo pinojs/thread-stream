@@ -7,17 +7,13 @@ import { file } from './helper.js'
 
 function basic (text, filename) {
   test(text, function (t) {
-    t.plan(7)
+    t.plan(6)
 
     const dest = file()
     const stream = new ThreadStream({
       filename,
       workerData: { dest },
       sync: true
-    })
-
-    stream.on('drain', () => {
-      t.pass('drain')
     })
 
     stream.on('ready', () => {

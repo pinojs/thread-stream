@@ -67,8 +67,23 @@ function createWorker (stream, opts) {
 }
 
 function drain (stream) {
-  stream.needDrain = false
-  stream.emit('drain')
+  if (!stream.ready) {
+    stream.flush(() => {
+      stream.ready = true
+      stream.emit('ready')
+      if (stream.ending) {
+        stream._end()
+      }
+      drain(stream)
+    })
+    return
+  }
+
+  if (stream.needDrain) {
+    stream.needDrain = false
+    stream.emit('drain')
+  }
+
   if (stream.ending) {
     stream._end()
   }
@@ -81,11 +96,7 @@ function nextFlush (stream) {
   if (leftover > 0) {
     if (stream.buf.length === 0) {
       stream.flushing = false
-      if (!stream.needDrain) {
-        // process._rawDebug('emitting drain')
-        stream.needDrain = true
-        process.nextTick(drain, stream)
-      }
+      process.nextTick(drain, stream)
       return
     }
 
@@ -147,19 +158,10 @@ function onWorkerMessage (msg) {
         stream.ready = true
         stream.flushSync()
         stream.emit('ready')
-        if (this.ending) {
-          this._end()
+        if (stream.ending) {
+          stream._end()
         }
       } else {
-        stream.once('drain', function () {
-          stream.flush(() => {
-            stream.ready = true
-            stream.emit('ready')
-            if (this.ending) {
-              this._end()
-            }
-          })
-        })
         nextFlush(stream)
       }
       break
@@ -247,7 +249,8 @@ class ThreadStream extends EventEmitter {
 
     if (!this.ready || this.flushing) {
       this.buf += data
-      return this._hasSpace()
+      this.needDrain = !this._hasSpace()
+      return !this.needDrain
     }
 
     if (this._sync) {
@@ -261,7 +264,8 @@ class ThreadStream extends EventEmitter {
     this.flushing = true
     setImmediate(nextFlush, this)
 
-    return this._hasSpace()
+    this.needDrain = !this._hasSpace()
+    return !this.needDrain
   }
 
   end () {
@@ -269,20 +273,12 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker has exited')
     }
 
-    if (this.ending) {
-      return
-    }
     this.ending = true
-
-    if (!this.ready || this.flushing) {
-      return
-    }
-
     this._end()
   }
 
   _end () {
-    if (this.ended) {
+    if (this.ended || !this.ending || !this.ready || this.flushing) {
       return
     }
     this.ended = true
@@ -339,11 +335,7 @@ class ThreadStream extends EventEmitter {
 
   _writeSync () {
     const cb = () => {
-      if (!this.needDrain) {
-        // process._rawDebug('emitting drain')
-        this.needDrain = true
-        process.nextTick(drain, this)
-      }
+      process.nextTick(drain, this)
     }
     this.flushing = false
 

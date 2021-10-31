@@ -7,17 +7,13 @@ const { file } = require('./helper')
 const ThreadStream = require('..')
 
 test('destroy support', function (t) {
-  t.plan(9)
+  t.plan(8)
 
   const dest = file()
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-file-on-destroy.js'),
     workerData: { dest },
     sync: true
-  })
-
-  stream.on('drain', () => {
-    t.pass('drain')
   })
 
   stream.on('ready', () => {
@@ -42,17 +38,13 @@ test('destroy support', function (t) {
 })
 
 test('synchronous _final support', function (t) {
-  t.plan(9)
+  t.plan(8)
 
   const dest = file()
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-file-on-final.js'),
     workerData: { dest },
     sync: true
-  })
-
-  stream.on('drain', () => {
-    t.pass('drain')
   })
 
   stream.on('ready', () => {
