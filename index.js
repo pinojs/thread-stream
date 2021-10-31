@@ -215,7 +215,6 @@ class ThreadStream extends EventEmitter {
       return
     }
     this.destroyed = true
-    this.closed = true
 
     if (err) {
       this.emit('error', err)
