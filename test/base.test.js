@@ -167,7 +167,7 @@ test('over the bufferSize at startup', function (t) {
 })
 
 test('over the bufferSize at startup (async)', function (t) {
-  t.plan(8)
+  t.plan(7)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -175,10 +175,6 @@ test('over the bufferSize at startup (async)', function (t) {
     filename: join(__dirname, 'to-file.js'),
     workerData: { dest },
     sync: false
-  })
-
-  stream.on('drain', () => {
-    t.pass('drain')
   })
 
   stream.on('ready', () => {

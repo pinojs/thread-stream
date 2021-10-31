@@ -68,26 +68,8 @@ function createWorker (stream, opts) {
 }
 
 function drain (stream) {
-  if (!stream.ready) {
-    stream.flush(() => {
-      stream.ready = true
-      stream.emit('ready')
-      if (stream.ending) {
-        stream._end()
-      }
-      drain(stream)
-    })
-    return
-  }
-
-  if (stream.needDrain) {
-    stream.needDrain = false
-    stream.emit('drain')
-  }
-
-  if (stream.ending) {
-    stream._end()
-  }
+  stream.needDrain = false
+  stream.emit('drain')
 }
 
 function nextFlush (stream) {
@@ -97,7 +79,24 @@ function nextFlush (stream) {
   if (leftover > 0) {
     if (stream.buf.length === 0) {
       stream.flushing = false
-      process.nextTick(drain, stream)
+
+      if (!stream.ready) {
+        stream.flush(() => {
+          stream.ready = true
+          stream.emit('ready')
+          if (stream.ending) {
+            stream._end()
+          } else if (stream.needDrain) {
+            drain(stream)
+          }
+        })
+        return
+      } else if (stream.ending) {
+        stream._end()
+      } else if (stream.needDrain) {
+        process.nextTick(drain, stream)
+      }
+
       return
     }
 
@@ -342,7 +341,9 @@ class ThreadStream extends EventEmitter {
 
   _writeSync () {
     const cb = () => {
-      if (this.ending || this.needDrain) {
+      if (this.ending) {
+        this._end()
+      } else if (this.needDrain) {
         process.nextTick(drain, this)
       }
     }
