@@ -332,7 +332,7 @@ class ThreadStream extends EventEmitter {
   }
 
   flush (cb) {
-    if (this.closed) {
+    if (this.destroyed) {
       throw new Error('the worker has exited')
     }
 
@@ -404,7 +404,7 @@ class ThreadStream extends EventEmitter {
   }
 
   flushSync () {
-    if (this.closed) {
+    if (this.destroyed) {
       throw new Error('the worker has exited')
     }
 
