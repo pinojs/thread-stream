@@ -69,6 +69,9 @@ function createWorker (stream, opts) {
 function drain (stream) {
   stream.needDrain = false
   stream.emit('drain')
+  if (stream.ending) {
+    stream._end()
+  }
 }
 
 function nextFlush (stream) {
@@ -144,11 +147,17 @@ function onWorkerMessage (msg) {
         stream.ready = true
         stream.flushSync()
         stream.emit('ready')
+        if (this.ending) {
+          this._end()
+        }
       } else {
         stream.once('drain', function () {
           stream.flush(() => {
             stream.ready = true
             stream.emit('ready')
+            if (this.ending) {
+              this._end()
+            }
           })
         })
         nextFlush(stream)
@@ -202,6 +211,7 @@ class ThreadStream extends EventEmitter {
     this.worker = createWorker(this, opts)
     this.ready = false
     this.ending = false
+    this.ended = false
     this.needDrain = false
     this.closed = false
 
@@ -259,20 +269,23 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker has exited')
     }
 
-    if (!this.ready) {
-      this.once('ready', this.end.bind(this))
-      return
-    }
-
-    if (this.flushing) {
-      this.once('drain', this.end.bind(this))
-      return
-    }
-
     if (this.ending) {
       return
     }
     this.ending = true
+
+    if (!this.ready || this.flushing) {
+      return
+    }
+
+    this._end()
+  }
+
+  _end () {
+    if (this.ended) {
+      return
+    }
+    this.ended = true
 
     this.flushSync()
 
