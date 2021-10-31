@@ -339,7 +339,9 @@ class ThreadStream extends EventEmitter {
 
   _writeSync () {
     const cb = () => {
-      process.nextTick(drain, this)
+      if (this.ending || this.needDrain) {
+        process.nextTick(drain, this)
+      }
     }
     this.flushing = false
 
