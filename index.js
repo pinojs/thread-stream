@@ -242,12 +242,6 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker has exited')
     }
 
-    if (this.flushing && this.buf.length + data.length >= MAX_STRING) {
-      // process._rawDebug('write: flushing')
-      this._writeSync()
-      this.flushing = true // we are still flushing
-    }
-
     if (this._sync) {
       if (!this.ready) {
         throw new Error('the worker is not ready')
@@ -259,6 +253,12 @@ class ThreadStream extends EventEmitter {
       this._writeSync()
 
       return true
+    }
+
+    if (this.flushing && this.buf.length + data.length >= MAX_STRING) {
+      // process._rawDebug('write: flushing')
+      this._writeSync()
+      this.flushing = true // we are still flushing
     }
 
     if (!this.ready || this.flushing) {
