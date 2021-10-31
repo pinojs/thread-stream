@@ -20,13 +20,13 @@ test('base sync=true', function (t) {
 
   stream.on('ready', () => {
     t.pass('ready emitted')
+
+    t.ok(stream.write('hello world\n'))
+    t.ok(stream.write('something else\n'))
+    t.ok(stream.writable)
+
+    stream.end()
   })
-
-  t.ok(stream.write('hello world\n'))
-  t.ok(stream.write('something else\n'))
-  t.ok(stream.writable)
-
-  stream.end()
 
   stream.on('finish', () => {
     readFile(dest, 'utf8', (err, data) => {
@@ -130,7 +130,7 @@ test('overflow sync=true', function (t) {
 // })
 
 test('over the bufferSize at startup', function (t) {
-  t.plan(8)
+  t.plan(7)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -141,18 +141,18 @@ test('over the bufferSize at startup', function (t) {
   })
 
   stream.on('drain', () => {
-    t.pass('drain')
+    t.fail()
   })
 
   stream.on('ready', () => {
     t.pass('ready emitted')
+
+    t.ok(stream.write('hello'))
+    t.ok(stream.write(' world\n'))
+    t.ok(stream.write('something else\n'))
+
+    stream.end()
   })
-
-  t.ok(stream.write('hello'))
-  t.notOk(stream.write(' world\n'))
-  t.notOk(stream.write('something else\n'))
-
-  stream.end()
 
   stream.on('finish', () => {
     readFile(dest, 'utf8', (err, data) => {
@@ -237,28 +237,6 @@ test('flushSync sync=false', function (t) {
       t.end()
     })
   })
-})
-
-test('flushSync on ready if sync=true', function (t) {
-  t.plan(4)
-
-  const dest = file()
-  const stream = new ThreadStream({
-    filename: join(__dirname, 'to-file.js'),
-    workerData: { dest },
-    sync: true
-  })
-
-  stream.on('ready', () => {
-    readFile(dest, 'utf8', (err, data) => {
-      t.error(err)
-      t.equal(data, 'hello world\nsomething else\n')
-      stream.end()
-    })
-  })
-
-  t.ok(stream.write('hello world\n'))
-  t.ok(stream.write('something else\n'))
 })
 
 test('flush on ready if sync=false', function (t) {

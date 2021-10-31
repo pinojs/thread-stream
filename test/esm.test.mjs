@@ -18,12 +18,12 @@ function basic (text, filename) {
 
     stream.on('ready', () => {
       t.pass('ready emitted')
+
+      t.ok(stream.write('hello world\n'))
+      t.ok(stream.write('something else\n'))
+
+      stream.end()
     })
-
-    t.ok(stream.write('hello world\n'))
-    t.ok(stream.write('something else\n'))
-
-    stream.end()
 
     stream.on('finish', () => {
       readFile(dest, 'utf8', (err, data) => {

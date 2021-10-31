@@ -247,17 +247,21 @@ class ThreadStream extends EventEmitter {
       this.flushing = true // we are still flushing
     }
 
-    if (!this.ready || this.flushing) {
-      this.buf += data
-      this.needDrain = !this._hasSpace()
-      return !this.needDrain
-    }
-
     if (this._sync) {
+      if (!this.ready || this.flushing) {
+        throw new Error('the worker is not ready')
+      }
+
       this.buf += data
       this._writeSync()
 
       return true
+    }
+
+    if (!this.ready || this.flushing) {
+      this.buf += data
+      this.needDrain = !this._hasSpace()
+      return !this.needDrain
     }
 
     this.buf = data
