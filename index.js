@@ -204,7 +204,6 @@ class ThreadStream extends EventEmitter {
     this.ending = false
     this.ended = false
     this.needDrain = false
-    this.closed = false
     this.destroyed = false
 
     this.buf = ''
@@ -224,12 +223,10 @@ class ThreadStream extends EventEmitter {
       this.worker.terminate()
         .catch(() => {})
         .then(() => {
-          this.closed = true
           this.emit('close')
         })
     } else {
       setImmediate(() => {
-        this.closed = true
         this.emit('close')
       })
     }
@@ -450,7 +447,7 @@ class ThreadStream extends EventEmitter {
   }
 
   get writable () {
-    return !this.closed && !this.ending
+    return !this.destroyed && !this.ending
   }
 }
 
