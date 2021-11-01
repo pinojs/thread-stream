@@ -6,7 +6,7 @@ const ThreadStream = require('..')
 const isYarnPnp = process.versions.pnp !== undefined
 
 test('yarn module resolution', { skip: !isYarnPnp }, t => {
-  t.plan(4)
+  t.plan(5)
 
   const modulePath = require.resolve('pino-elasticsearch')
   t.match(modulePath, /.*\.zip.*/)
@@ -17,11 +17,15 @@ test('yarn module resolution', { skip: !isYarnPnp }, t => {
     sync: true
   })
 
+  stream.on('error', () => {
+    t.pass('error emitted')
+  })
+
   try {
     t.ok(stream.write('hello world\n'))
     t.ok(stream.writable)
     stream.end()
   } catch {
-    t.pass('error emitted')
+    t.pass('error thrown')
   }
 })
