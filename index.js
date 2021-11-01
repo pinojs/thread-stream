@@ -144,7 +144,6 @@ function onWorkerMessage (msg) {
       // Replace the FakeWeakRef with a
       // proper one.
       this.stream = new WeakRef(stream)
-      nextFlush(stream)
       break
     case 'ERROR':
       stream._destroy(msg.err)
@@ -184,7 +183,7 @@ class ThreadStream extends EventEmitter {
     this.ended = false
     this.needDrain = false
     this.destroyed = false
-    this.flushing = !this._sync
+    this.flushing = false
 
     this.buf = ''
   }
@@ -235,7 +234,7 @@ class ThreadStream extends EventEmitter {
     if (this._sync) {
       assert(!this.flushing)
 
-      this.buf = data
+      this.buf += data
       this._writeSync()
 
       return true
