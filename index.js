@@ -231,20 +231,16 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker is ending')
     }
 
-    if (this._sync) {
-      assert(!this.flushing)
-
-      this.buf += data
-      this._writeSync()
-
-      return true
-    }
-
     if (this.buf.length + data.length >= MAX_STRING) {
       this._writeSync()
     }
 
     this.buf += data
+
+    if (this._sync) {
+      this._writeSync()
+      return true
+    }
 
     if (!this.flushing) {
       this.flushing = true
