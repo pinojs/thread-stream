@@ -21,7 +21,7 @@ test('yarn module resolution', { skip: !isYarnPnp }, t => {
     t.ok(stream.write('hello world\n'))
     t.ok(stream.writable)
     stream.end()
-  } catch (err) {
+  } catch {
     t.pass('error emitted')
   }
 })
