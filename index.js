@@ -144,6 +144,7 @@ function onWorkerMessage (msg) {
       // Replace the FakeWeakRef with a
       // proper one.
       this.stream = new WeakRef(stream)
+      this.ready = true
       this.emit('ready')
       break
     case 'ERROR':
@@ -185,6 +186,7 @@ class ThreadStream extends EventEmitter {
     this.needDrain = false
     this.destroyed = false
     this.flushing = false
+    this.ready = false
 
     this.buf = ''
   }
