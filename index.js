@@ -234,6 +234,7 @@ class ThreadStream extends EventEmitter {
     if (this.buf.length + data.length >= MAX_STRING) {
       try {
         this._writeSync()
+        this.flushing = true
       } catch (err) {
         this._destroy(err)
         return false
