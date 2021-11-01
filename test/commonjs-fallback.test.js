@@ -6,7 +6,7 @@ const ThreadStream = require('..')
 const isYarnPnp = process.versions.pnp !== undefined
 
 test('yarn module resolution', { skip: !isYarnPnp }, t => {
-  t.plan(3)
+  t.plan(4)
 
   const modulePath = require.resolve('pino-elasticsearch')
   t.match(modulePath, /.*\.zip.*/)
