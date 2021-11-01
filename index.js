@@ -278,7 +278,6 @@ class ThreadStream extends EventEmitter {
     }
     this.ended = true
 
-    // TODO (fix): Why flushSync?
     try {
       this.flushSync()
 
