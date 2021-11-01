@@ -232,14 +232,24 @@ class ThreadStream extends EventEmitter {
     }
 
     if (this.buf.length + data.length >= MAX_STRING) {
-      this._writeSync()
+      try {
+        this._writeSync()
+      } catch (err) {
+        this._destroy(err)
+        return false
+      }
     }
 
     this.buf += data
 
     if (this._sync) {
-      this._writeSync()
-      return true
+      try {
+        this._writeSync()
+        return true
+      } catch (err) {
+        this._destroy(err)
+        return false
+      }
     }
 
     if (!this.flushing) {
@@ -266,34 +276,39 @@ class ThreadStream extends EventEmitter {
     }
     this.ended = true
 
-    this.flushSync()
+    // TODO (fix): Why flushSync?
+    try {
+      this.flushSync()
 
-    let readIndex = Atomics.load(this._state, READ_INDEX)
+      let readIndex = Atomics.load(this._state, READ_INDEX)
 
-    // process._rawDebug('writing index')
-    Atomics.store(this._state, WRITE_INDEX, -1)
-    // process._rawDebug(`(end) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
-    Atomics.notify(this._state, WRITE_INDEX)
+      // process._rawDebug('writing index')
+      Atomics.store(this._state, WRITE_INDEX, -1)
+      // process._rawDebug(`(end) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
+      Atomics.notify(this._state, WRITE_INDEX)
 
-    // Wait for the process to complete
-    let spins = 0
-    while (readIndex !== -1) {
-      // process._rawDebug(`read = ${read}`)
-      Atomics.wait(this._state, READ_INDEX, readIndex, 1000)
-      readIndex = Atomics.load(this._state, READ_INDEX)
+      // Wait for the process to complete
+      let spins = 0
+      while (readIndex !== -1) {
+        // process._rawDebug(`read = ${read}`)
+        Atomics.wait(this._state, READ_INDEX, readIndex, 1000)
+        readIndex = Atomics.load(this._state, READ_INDEX)
 
-      if (readIndex === -2) {
-        throw new Error('end() failed')
+        if (readIndex === -2) {
+          throw new Error('end() failed')
+        }
+
+        if (++spins === 10) {
+          throw new Error('end() took too long (10s)')
+        }
       }
 
-      if (++spins === 10) {
-        throw new Error('end() took too long (10s)')
-      }
+      process.nextTick(() => {
+        this.emit('finish')
+      })
+    } catch (err) {
+      this._destroy(err)
     }
-
-    process.nextTick(() => {
-      this.emit('finish')
-    })
     // process._rawDebug('end finished...')
   }
 
