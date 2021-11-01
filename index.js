@@ -184,6 +184,7 @@ class ThreadStream extends EventEmitter {
     this.needDrain = false
     this.destroyed = false
     this.flushing = false
+    this.errored = null
 
     this.buf = ''
   }
@@ -195,6 +196,7 @@ class ThreadStream extends EventEmitter {
     this.destroyed = true
 
     if (err) {
+      this.errored = err
       this.emit('error', err)
     }
 
@@ -394,6 +396,10 @@ class ThreadStream extends EventEmitter {
         Atomics.wait(this._state, READ_INDEX, readIndex, 1000)
       } else {
         break
+      }
+
+      if (this.errored) {
+        throw this.errored
       }
 
       if (++spins === 30) {
