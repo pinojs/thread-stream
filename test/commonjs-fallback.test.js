@@ -6,7 +6,7 @@ const ThreadStream = require('..')
 const isYarnPnp = process.versions.pnp !== undefined
 
 test('yarn module resolution', { skip: !isYarnPnp }, t => {
-  t.plan(4)
+  t.plan(3)
 
   const modulePath = require.resolve('pino-elasticsearch')
   t.match(modulePath, /.*\.zip.*/)
@@ -23,6 +23,5 @@ test('yarn module resolution', { skip: !isYarnPnp }, t => {
     stream.end()
   } catch (err) {
     t.pass('error emitted')
-    t.equal(err.message, 'Missing node(s) option', 'module custom error')
   }
 })

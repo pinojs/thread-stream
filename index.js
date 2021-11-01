@@ -283,7 +283,7 @@ class ThreadStream extends EventEmitter {
       readIndex = Atomics.load(this._state, READ_INDEX)
 
       if (readIndex === -2) {
-        throw new Error()
+        throw new Error('end() failed')
       }
 
       if (++spins === 10) {
@@ -394,7 +394,7 @@ class ThreadStream extends EventEmitter {
       const readIndex = Atomics.load(this._state, READ_INDEX)
 
       if (readIndex === -2) {
-        throw new Error()
+        throw new Error('_flushSync failed')
       }
 
       // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
