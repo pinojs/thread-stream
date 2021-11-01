@@ -396,8 +396,8 @@ class ThreadStream extends EventEmitter {
         break
       }
 
-      if (++spins === 10) {
-        throw new Error('_flushSync took too long (10s)')
+      if (++spins === 30) {
+        throw new Error('_flushSync took too long (30s)')
       }
     }
     // process._rawDebug('flushSync finished')
