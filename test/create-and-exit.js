@@ -9,10 +9,8 @@ const stream = new ThreadStream({
   sync: true
 })
 
-stream.on('ready', function () {
-  stream.write('hello')
-  stream.write(' ')
-  stream.write('world\n')
-  stream.flushSync()
-  stream.unref()
-})
+stream.write('hello')
+stream.write(' ')
+stream.write('world\n')
+stream.flushSync()
+stream.unref()

@@ -10,6 +10,7 @@ const {
   READ_INDEX
 } = require('./lib/indexes')
 const buffer = require('buffer')
+const assert = require('assert')
 
 // V8 limit for string size
 const MAX_STRING = buffer.constants.MAX_STRING_LENGTH
@@ -67,8 +68,11 @@ function createWorker (stream, opts) {
 }
 
 function drain (stream) {
-  stream.needDrain = false
-  stream.emit('drain')
+  assert(!stream._sync)
+  if (stream.needDrain) {
+    stream.needDrain = false
+    stream.emit('drain')
+  }
 }
 
 function nextFlush (stream) {
@@ -78,11 +82,13 @@ function nextFlush (stream) {
   if (leftover > 0) {
     if (stream.buf.length === 0) {
       stream.flushing = false
-      if (!stream.needDrain) {
-        // process._rawDebug('emitting drain')
-        stream.needDrain = true
+
+      if (stream.ending) {
+        stream._end()
+      } else if (stream.needDrain) {
         process.nextTick(drain, stream)
       }
+
       return
     }
 
@@ -140,29 +146,14 @@ function onWorkerMessage (msg) {
       // Replace the FakeWeakRef with a
       // proper one.
       this.stream = new WeakRef(stream)
-      if (stream._sync) {
-        stream.ready = true
-        stream.flushSync()
+
+      stream.flush(() => {
+        this.ready = true
         stream.emit('ready')
-      } else {
-        stream.once('drain', function () {
-          stream.flush(() => {
-            stream.ready = true
-            stream.emit('ready')
-          })
-        })
-        nextFlush(stream)
-      }
+      })
       break
     case 'ERROR':
-      stream.closed = true
-      stream.worker.exited = true
-      // TODO only remove our own
-      stream.worker.removeAllListeners('exit')
-      stream.worker.terminate().then(null, () => {})
-      process.nextTick(() => {
-        stream.emit('error', msg.err)
-      })
+      stream._destroy(msg.err)
       break
     default:
       throw new Error('this should not happen: ' + msg.code)
@@ -176,14 +167,9 @@ function onWorkerExit (code) {
     return
   }
   registry.unregister(stream)
-  stream.closed = true
   stream.worker.exited = true
-  setImmediate(function () {
-    if (code !== 0) {
-      stream.emit('error', new Error('The worker thread exited'))
-    }
-    stream.emit('close')
-  })
+  stream.worker.off('exit', onWorkerExit)
+  stream._destroy(code !== 0 ? new Error('The worker thread exited') : null)
 }
 
 class ThreadStream extends EventEmitter {
@@ -200,12 +186,37 @@ class ThreadStream extends EventEmitter {
     this._data = Buffer.from(this._dataBuf)
     this._sync = opts.sync || false
     this.worker = createWorker(this, opts)
-    this.ready = false
     this.ending = false
+    this.ended = false
     this.needDrain = false
-    this.closed = false
+    this.destroyed = false
+    this.flushing = false
+    this.ready = false
 
     this.buf = ''
+  }
+
+  _destroy (err) {
+    if (this.destroyed) {
+      return
+    }
+    this.destroyed = true
+
+    if (err) {
+      this.emit('error', err)
+    }
+
+    if (!this.worker.exited) {
+      this.worker.terminate()
+        .catch(() => {})
+        .then(() => {
+          this.emit('close')
+        })
+    } else {
+      setImmediate(() => {
+        this.emit('close')
+      })
+    }
   }
 
   _write (data, cb) {
@@ -219,90 +230,98 @@ class ThreadStream extends EventEmitter {
     return true
   }
 
-  _hasSpace () {
-    const current = Atomics.load(this._state, WRITE_INDEX)
-    return this._data.length - this.buf.length - current > 0
-  }
-
   write (data) {
-    if (this.closed) {
+    if (this.destroyed) {
       throw new Error('the worker has exited')
-    }
-
-    if (this.flushing && this.buf.length + data.length >= MAX_STRING) {
-      // process._rawDebug('write: flushing')
-      this._writeSync()
-      this.flushing = true // we are still flushing
-    }
-
-    if (!this.ready || this.flushing) {
-      this.buf += data
-      return this._hasSpace()
-    }
-
-    if (this._sync) {
-      this.buf += data
-      this._writeSync()
-
-      return true
-    }
-
-    this.buf = data
-    this.flushing = true
-    setImmediate(nextFlush, this)
-
-    return this._hasSpace()
-  }
-
-  end () {
-    if (this.closed) {
-      throw new Error('the worker has exited')
-    }
-
-    if (!this.ready) {
-      this.once('ready', this.end.bind(this))
-      return
-    }
-
-    if (this.flushing) {
-      this.once('drain', this.end.bind(this))
-      return
     }
 
     if (this.ending) {
-      return
+      throw new Error('the worker is ending')
     }
-    this.ending = true
 
-    this.flushSync()
-
-    let read = Atomics.load(this._state, READ_INDEX)
-
-    // process._rawDebug('writing index')
-    Atomics.store(this._state, WRITE_INDEX, -1)
-    // process._rawDebug(`(end) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
-    Atomics.notify(this._state, WRITE_INDEX)
-
-    // Wait for the process to complete
-    let spins = 0
-    while (read !== -1) {
-      // process._rawDebug(`read = ${read}`)
-      Atomics.wait(this._state, READ_INDEX, read, 1000)
-      read = Atomics.load(this._state, READ_INDEX)
-
-      if (++spins === 10) {
-        throw new Error('end() took too long (10s)')
+    if (this.flushing && this.buf.length + data.length >= MAX_STRING) {
+      try {
+        this._writeSync()
+        this.flushing = true
+      } catch (err) {
+        this._destroy(err)
+        return false
       }
     }
 
-    process.nextTick(() => {
-      this.emit('finish')
-    })
+    this.buf += data
+
+    if (this._sync) {
+      try {
+        this._writeSync()
+        return true
+      } catch (err) {
+        this._destroy(err)
+        return false
+      }
+    }
+
+    if (!this.flushing) {
+      this.flushing = true
+      setImmediate(nextFlush, this)
+    }
+
+    this.needDrain = this._data.length - this.buf.length - Atomics.load(this._state, WRITE_INDEX) <= 0
+    return !this.needDrain
+  }
+
+  end () {
+    if (this.destroyed) {
+      throw new Error('the worker has exited')
+    }
+
+    this.ending = true
+    this._end()
+  }
+
+  _end () {
+    if (this.ended || !this.ending || this.flushing) {
+      return
+    }
+    this.ended = true
+
+    try {
+      this.flushSync()
+
+      let readIndex = Atomics.load(this._state, READ_INDEX)
+
+      // process._rawDebug('writing index')
+      Atomics.store(this._state, WRITE_INDEX, -1)
+      // process._rawDebug(`(end) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
+      Atomics.notify(this._state, WRITE_INDEX)
+
+      // Wait for the process to complete
+      let spins = 0
+      while (readIndex !== -1) {
+        // process._rawDebug(`read = ${read}`)
+        Atomics.wait(this._state, READ_INDEX, readIndex, 1000)
+        readIndex = Atomics.load(this._state, READ_INDEX)
+
+        if (readIndex === -2) {
+          throw new Error('end() failed')
+        }
+
+        if (++spins === 10) {
+          throw new Error('end() took too long (10s)')
+        }
+      }
+
+      process.nextTick(() => {
+        this.emit('finish')
+      })
+    } catch (err) {
+      this._destroy(err)
+    }
     // process._rawDebug('end finished...')
   }
 
   flush (cb) {
-    if (this.closed) {
+    if (this.destroyed) {
       throw new Error('the worker has exited')
     }
 
@@ -311,8 +330,8 @@ class ThreadStream extends EventEmitter {
     // process._rawDebug(`(flush) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
     wait(this._state, READ_INDEX, writeIndex, Infinity, (err, res) => {
       if (err) {
-        this.emit('error', err)
-        cb(err)
+        this._destroy(err)
+        process.nextTick(cb, err)
         return
       }
       if (res === 'not-equal') {
@@ -320,15 +339,15 @@ class ThreadStream extends EventEmitter {
         this.flush(cb)
         return
       }
-      cb()
+      process.nextTick(cb)
     })
   }
 
   _writeSync () {
     const cb = () => {
-      if (!this.needDrain) {
-        // process._rawDebug('emitting drain')
-        this.needDrain = true
+      if (this.ending) {
+        this._end()
+      } else if (this.needDrain) {
         process.nextTick(drain, this)
       }
     }
@@ -374,7 +393,7 @@ class ThreadStream extends EventEmitter {
   }
 
   flushSync () {
-    if (this.closed) {
+    if (this.destroyed) {
       throw new Error('the worker has exited')
     }
 
@@ -396,6 +415,11 @@ class ThreadStream extends EventEmitter {
     // TODO handle deadlock
     while (true) {
       const readIndex = Atomics.load(this._state, READ_INDEX)
+
+      if (readIndex === -2) {
+        throw new Error('_flushSync failed')
+      }
+
       // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
       if (readIndex !== writeIndex) {
         // TODO this timeouts for some reason.
@@ -420,7 +444,7 @@ class ThreadStream extends EventEmitter {
   }
 
   get writable () {
-    return !this.closed
+    return !this.destroyed && !this.ending
   }
 }
 
