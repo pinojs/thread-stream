@@ -12,6 +12,8 @@ const {
 const buffer = require('buffer')
 const assert = require('assert')
 
+const kImpl = Symbol('kImpl')
+
 // V8 limit for string size
 const MAX_STRING = buffer.constants.MAX_STRING_LENGTH
 
@@ -50,8 +52,8 @@ function createWorker (stream, opts) {
       filename: filename.indexOf('file://') === 0
         ? filename
         : pathToFileURL(filename).href,
-      dataBuf: stream._dataBuf,
-      stateBuf: stream._stateBuf,
+      dataBuf: stream[kImpl].dataBuf,
+      stateBuf: stream[kImpl].stateBuf,
       workerData
     }
   })
@@ -68,62 +70,62 @@ function createWorker (stream, opts) {
 }
 
 function drain (stream) {
-  assert(!stream._sync)
-  if (stream.needDrain) {
-    stream.needDrain = false
+  assert(!stream[kImpl].sync)
+  if (stream[kImpl].needDrain) {
+    stream[kImpl].needDrain = false
     stream.emit('drain')
   }
 }
 
 function nextFlush (stream) {
-  const writeIndex = Atomics.load(stream._state, WRITE_INDEX)
-  let leftover = stream._data.length - writeIndex
+  const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
+  let leftover = stream[kImpl].data.length - writeIndex
 
   if (leftover > 0) {
-    if (stream.buf.length === 0) {
-      stream.flushing = false
+    if (stream[kImpl].buf.length === 0) {
+      stream[kImpl].flushing = false
 
-      if (stream.ending) {
-        stream._end()
-      } else if (stream.needDrain) {
+      if (stream[kImpl].ending) {
+        end(stream)
+      } else if (stream[kImpl].needDrain) {
         process.nextTick(drain, stream)
       }
 
       return
     }
 
-    let toWrite = stream.buf.slice(0, leftover)
+    let toWrite = stream[kImpl].buf.slice(0, leftover)
     let toWriteBytes = Buffer.byteLength(toWrite)
     if (toWriteBytes <= leftover) {
-      stream.buf = stream.buf.slice(leftover)
+      stream[kImpl].buf = stream[kImpl].buf.slice(leftover)
       // process._rawDebug('writing ' + toWrite.length)
-      stream._write(toWrite, nextFlush.bind(null, stream))
+      write(stream, toWrite, nextFlush.bind(null, stream))
     } else {
       // multi-byte utf-8
       stream.flush(() => {
-        Atomics.store(stream._state, READ_INDEX, 0)
-        Atomics.store(stream._state, WRITE_INDEX, 0)
+        Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+        Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
 
         // Find a toWrite length that fits the buffer
         // it must exists as the buffer is at least 4 bytes length
         // and the max utf-8 length for a char is 4 bytes.
-        while (toWriteBytes > stream.buf.length) {
+        while (toWriteBytes > stream[kImpl].buf.length) {
           leftover = leftover / 2
-          toWrite = stream.buf.slice(0, leftover)
+          toWrite = stream[kImpl].buf.slice(0, leftover)
           toWriteBytes = Buffer.byteLength(toWrite)
         }
-        stream.buf = stream.buf.slice(leftover)
-        stream._write(toWrite, nextFlush.bind(null, stream))
+        stream[kImpl].buf = stream[kImpl].buf.slice(leftover)
+        write(stream, toWrite, nextFlush.bind(null, stream))
       })
     }
   } else if (leftover === 0) {
-    if (writeIndex === 0 && stream.buf.length === 0) {
+    if (writeIndex === 0 && stream[kImpl].buf.length === 0) {
       // we had a flushSync in the meanwhile
       return
     }
     stream.flush(() => {
-      Atomics.store(stream._state, READ_INDEX, 0)
-      Atomics.store(stream._state, WRITE_INDEX, 0)
+      Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+      Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
       nextFlush(stream)
     })
   } else {
@@ -148,12 +150,12 @@ function onWorkerMessage (msg) {
       this.stream = new WeakRef(stream)
 
       stream.flush(() => {
-        this.ready = true
+        stream[kImpl].ready = true
         stream.emit('ready')
       })
       break
     case 'ERROR':
-      stream._destroy(msg.err)
+      destroy(stream, msg.err)
       break
     default:
       throw new Error('this should not happen: ' + msg.code)
@@ -169,7 +171,7 @@ function onWorkerExit (code) {
   registry.unregister(stream)
   stream.worker.exited = true
   stream.worker.off('exit', onWorkerExit)
-  stream._destroy(code !== 0 ? new Error('The worker thread exited') : null)
+  destroy(stream, code !== 0 ? new Error('The worker thread exited') : null)
 }
 
 class ThreadStream extends EventEmitter {
@@ -180,157 +182,84 @@ class ThreadStream extends EventEmitter {
       throw new Error('bufferSize must at least fit a 4-byte utf-8 char')
     }
 
-    this._stateBuf = new SharedArrayBuffer(128)
-    this._state = new Int32Array(this._stateBuf)
-    this._dataBuf = new SharedArrayBuffer(opts.bufferSize || 4 * 1024 * 1024)
-    this._data = Buffer.from(this._dataBuf)
-    this._sync = opts.sync || false
-    this.worker = createWorker(this, opts)
-    this.ending = false
-    this.ended = false
-    this.needDrain = false
-    this.destroyed = false
-    this.flushing = false
-    this.ready = false
+    this[kImpl] = {}
+    this[kImpl].stateBuf = new SharedArrayBuffer(128)
+    this[kImpl].state = new Int32Array(this[kImpl].stateBuf)
+    this[kImpl].dataBuf = new SharedArrayBuffer(opts.bufferSize || 4 * 1024 * 1024)
+    this[kImpl].data = Buffer.from(this[kImpl].dataBuf)
+    this[kImpl].sync = opts.sync || false
+    this[kImpl].ending = false
+    this[kImpl].ended = false
+    this[kImpl].needDrain = false
+    this[kImpl].destroyed = false
+    this[kImpl].flushing = false
+    this[kImpl].ready = false
+    this[kImpl].buf = ''
 
-    this.buf = ''
-  }
-
-  _destroy (err) {
-    if (this.destroyed) {
-      return
-    }
-    this.destroyed = true
-
-    if (err) {
-      this.emit('error', err)
-    }
-
-    if (!this.worker.exited) {
-      this.worker.terminate()
-        .catch(() => {})
-        .then(() => {
-          this.emit('close')
-        })
-    } else {
-      setImmediate(() => {
-        this.emit('close')
-      })
-    }
-  }
-
-  _write (data, cb) {
-    // data is smaller than the shared buffer length
-    const current = Atomics.load(this._state, WRITE_INDEX)
-    const length = Buffer.byteLength(data)
-    this._data.write(data, current)
-    Atomics.store(this._state, WRITE_INDEX, current + length)
-    Atomics.notify(this._state, WRITE_INDEX)
-    cb()
-    return true
+    // TODO (fix): Make private?
+    this.worker = createWorker(this, opts) // TODO (fix): make private
   }
 
   write (data) {
-    if (this.destroyed) {
+    if (this[kImpl].destroyed) {
       throw new Error('the worker has exited')
     }
 
-    if (this.ending) {
+    if (this[kImpl].ending) {
       throw new Error('the worker is ending')
     }
 
-    if (this.flushing && this.buf.length + data.length >= MAX_STRING) {
+    if (this[kImpl].flushing && this[kImpl].buf.length + data.length >= MAX_STRING) {
       try {
-        this._writeSync()
-        this.flushing = true
+        writeSync(this)
+        this[kImpl].flushing = true
       } catch (err) {
-        this._destroy(err)
+        destroy(this, err)
         return false
       }
     }
 
-    this.buf += data
+    this[kImpl].buf += data
 
-    if (this._sync) {
+    if (this[kImpl].sync) {
       try {
-        this._writeSync()
+        writeSync(this)
         return true
       } catch (err) {
-        this._destroy(err)
+        destroy(this, err)
         return false
       }
     }
 
-    if (!this.flushing) {
-      this.flushing = true
+    if (!this[kImpl].flushing) {
+      this[kImpl].flushing = true
       setImmediate(nextFlush, this)
     }
 
-    this.needDrain = this._data.length - this.buf.length - Atomics.load(this._state, WRITE_INDEX) <= 0
-    return !this.needDrain
+    this[kImpl].needDrain = this[kImpl].data.length - this[kImpl].buf.length - Atomics.load(this[kImpl].state, WRITE_INDEX) <= 0
+    return !this[kImpl].needDrain
   }
 
   end () {
-    if (this.destroyed) {
+    if (this[kImpl].destroyed) {
       throw new Error('the worker has exited')
     }
 
-    this.ending = true
-    this._end()
-  }
-
-  _end () {
-    if (this.ended || !this.ending || this.flushing) {
-      return
-    }
-    this.ended = true
-
-    try {
-      this.flushSync()
-
-      let readIndex = Atomics.load(this._state, READ_INDEX)
-
-      // process._rawDebug('writing index')
-      Atomics.store(this._state, WRITE_INDEX, -1)
-      // process._rawDebug(`(end) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
-      Atomics.notify(this._state, WRITE_INDEX)
-
-      // Wait for the process to complete
-      let spins = 0
-      while (readIndex !== -1) {
-        // process._rawDebug(`read = ${read}`)
-        Atomics.wait(this._state, READ_INDEX, readIndex, 1000)
-        readIndex = Atomics.load(this._state, READ_INDEX)
-
-        if (readIndex === -2) {
-          throw new Error('end() failed')
-        }
-
-        if (++spins === 10) {
-          throw new Error('end() took too long (10s)')
-        }
-      }
-
-      process.nextTick(() => {
-        this.emit('finish')
-      })
-    } catch (err) {
-      this._destroy(err)
-    }
-    // process._rawDebug('end finished...')
+    this[kImpl].ending = true
+    end(this)
   }
 
   flush (cb) {
-    if (this.destroyed) {
+    if (this[kImpl].destroyed) {
       throw new Error('the worker has exited')
     }
 
     // TODO write all .buf
-    const writeIndex = Atomics.load(this._state, WRITE_INDEX)
-    // process._rawDebug(`(flush) readIndex (${Atomics.load(this._state, READ_INDEX)}) writeIndex (${Atomics.load(this._state, WRITE_INDEX)})`)
-    wait(this._state, READ_INDEX, writeIndex, Infinity, (err, res) => {
+    const writeIndex = Atomics.load(this[kImpl].state, WRITE_INDEX)
+    // process._rawDebug(`(flush) readIndex (${Atomics.load(this.state, READ_INDEX)}) writeIndex (${Atomics.load(this.state, WRITE_INDEX)})`)
+    wait(this[kImpl].state, READ_INDEX, writeIndex, Infinity, (err, res) => {
       if (err) {
-        this._destroy(err)
+        destroy(this, err)
         process.nextTick(cb, err)
         return
       }
@@ -343,96 +272,13 @@ class ThreadStream extends EventEmitter {
     })
   }
 
-  _writeSync () {
-    const cb = () => {
-      if (this.ending) {
-        this._end()
-      } else if (this.needDrain) {
-        process.nextTick(drain, this)
-      }
-    }
-    this.flushing = false
-
-    while (this.buf.length !== 0) {
-      const writeIndex = Atomics.load(this._state, WRITE_INDEX)
-      let leftover = this._data.length - writeIndex
-      if (leftover === 0) {
-        this._flushSync()
-        Atomics.store(this._state, READ_INDEX, 0)
-        Atomics.store(this._state, WRITE_INDEX, 0)
-        continue
-      } else if (leftover < 0) {
-        // This should never happen
-        throw new Error('overwritten')
-      }
-
-      let toWrite = this.buf.slice(0, leftover)
-      let toWriteBytes = Buffer.byteLength(toWrite)
-      if (toWriteBytes <= leftover) {
-        this.buf = this.buf.slice(leftover)
-        // process._rawDebug('writing ' + toWrite.length)
-        this._write(toWrite, cb)
-      } else {
-        // multi-byte utf-8
-        this._flushSync()
-        Atomics.store(this._state, READ_INDEX, 0)
-        Atomics.store(this._state, WRITE_INDEX, 0)
-
-        // Find a toWrite length that fits the buffer
-        // it must exists as the buffer is at least 4 bytes length
-        // and the max utf-8 length for a char is 4 bytes.
-        while (toWriteBytes > this.buf.length) {
-          leftover = leftover / 2
-          toWrite = this.buf.slice(0, leftover)
-          toWriteBytes = Buffer.byteLength(toWrite)
-        }
-        this.buf = this.buf.slice(leftover)
-        this._write(toWrite, cb)
-      }
-    }
-  }
-
   flushSync () {
-    if (this.destroyed) {
+    if (this[kImpl].destroyed) {
       throw new Error('the worker has exited')
     }
 
-    this._writeSync()
-    this._flushSync()
-  }
-
-  _flushSync () {
-    if (this.flushing) {
-      throw new Error('unable to flush while flushing')
-    }
-
-    // process._rawDebug('flushSync started')
-
-    const writeIndex = Atomics.load(this._state, WRITE_INDEX)
-
-    let spins = 0
-
-    // TODO handle deadlock
-    while (true) {
-      const readIndex = Atomics.load(this._state, READ_INDEX)
-
-      if (readIndex === -2) {
-        throw new Error('_flushSync failed')
-      }
-
-      // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
-      if (readIndex !== writeIndex) {
-        // TODO this timeouts for some reason.
-        Atomics.wait(this._state, READ_INDEX, readIndex, 1000)
-      } else {
-        break
-      }
-
-      if (++spins === 10) {
-        throw new Error('_flushSync took too long (10s)')
-      }
-    }
-    // process._rawDebug('flushSync finished')
+    writeSync(this)
+    flushSync(this)
   }
 
   unref () {
@@ -443,9 +289,175 @@ class ThreadStream extends EventEmitter {
     this.worker.ref()
   }
 
-  get writable () {
-    return !this.destroyed && !this.ending
+  get ready () {
+    return this[kImpl].ready
   }
+
+  get destroyed () {
+    return this[kImpl].destroyed
+  }
+
+  get writable () {
+    return !this[kImpl].destroyed && !this[kImpl].ending
+  }
+}
+
+function destroy (stream, err) {
+  if (stream[kImpl].destroyed) {
+    return
+  }
+  stream[kImpl].destroyed = true
+
+  if (err) {
+    stream.emit('error', err)
+  }
+
+  if (!stream.worker.exited) {
+    stream.worker.terminate()
+      .catch(() => {})
+      .then(() => {
+        stream.emit('close')
+      })
+  } else {
+    setImmediate(() => {
+      stream.emit('close')
+    })
+  }
+}
+
+function write (stream, data, cb) {
+  // data is smaller than the shared buffer length
+  const current = Atomics.load(stream[kImpl].state, WRITE_INDEX)
+  const length = Buffer.byteLength(data)
+  stream[kImpl].data.write(data, current)
+  Atomics.store(stream[kImpl].state, WRITE_INDEX, current + length)
+  Atomics.notify(stream[kImpl].state, WRITE_INDEX)
+  cb()
+  return true
+}
+
+function end (stream) {
+  if (stream[kImpl].ended || !stream[kImpl].ending || stream[kImpl].flushing) {
+    return
+  }
+  stream[kImpl].ended = true
+
+  try {
+    stream.flushSync()
+
+    let readIndex = Atomics.load(stream[kImpl].state, READ_INDEX)
+
+    // process._rawDebug('writing index')
+    Atomics.store(stream[kImpl].state, WRITE_INDEX, -1)
+    // process._rawDebug(`(end) readIndex (${Atomics.load(stream.state, READ_INDEX)}) writeIndex (${Atomics.load(stream.state, WRITE_INDEX)})`)
+    Atomics.notify(stream[kImpl].state, WRITE_INDEX)
+
+    // Wait for the process to complete
+    let spins = 0
+    while (readIndex !== -1) {
+      // process._rawDebug(`read = ${read}`)
+      Atomics.wait(stream[kImpl].state, READ_INDEX, readIndex, 1000)
+      readIndex = Atomics.load(stream[kImpl].state, READ_INDEX)
+
+      if (readIndex === -2) {
+        throw new Error('end() failed')
+      }
+
+      if (++spins === 10) {
+        throw new Error('end() took too long (10s)')
+      }
+    }
+
+    process.nextTick(() => {
+      stream.emit('finish')
+    })
+  } catch (err) {
+    destroy(stream, err)
+  }
+  // process._rawDebug('end finished...')
+}
+
+function writeSync (stream) {
+  const cb = () => {
+    if (stream[kImpl].ending) {
+      end(stream)
+    } else if (stream[kImpl].needDrain) {
+      process.nextTick(drain, stream)
+    }
+  }
+  stream[kImpl].flushing = false
+
+  while (stream[kImpl].buf.length !== 0) {
+    const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
+    let leftover = stream[kImpl].data.length - writeIndex
+    if (leftover === 0) {
+      flushSync(stream)
+      Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+      Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+      continue
+    } else if (leftover < 0) {
+      // stream should never happen
+      throw new Error('overwritten')
+    }
+
+    let toWrite = stream[kImpl].buf.slice(0, leftover)
+    let toWriteBytes = Buffer.byteLength(toWrite)
+    if (toWriteBytes <= leftover) {
+      stream[kImpl].buf = stream[kImpl].buf.slice(leftover)
+      // process._rawDebug('writing ' + toWrite.length)
+      write(stream, toWrite, cb)
+    } else {
+      // multi-byte utf-8
+      flushSync(stream)
+      Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+      Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+
+      // Find a toWrite length that fits the buffer
+      // it must exists as the buffer is at least 4 bytes length
+      // and the max utf-8 length for a char is 4 bytes.
+      while (toWriteBytes > stream[kImpl].buf.length) {
+        leftover = leftover / 2
+        toWrite = stream[kImpl].buf.slice(0, leftover)
+        toWriteBytes = Buffer.byteLength(toWrite)
+      }
+      stream[kImpl].buf = stream[kImpl].buf.slice(leftover)
+      write(stream, toWrite, cb)
+    }
+  }
+}
+
+function flushSync (stream) {
+  if (stream[kImpl].flushing) {
+    throw new Error('unable to flush while flushing')
+  }
+
+  // process._rawDebug('flushSync started')
+
+  const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
+
+  let spins = 0
+
+  // TODO handle deadlock
+  while (true) {
+    const readIndex = Atomics.load(stream[kImpl].state, READ_INDEX)
+
+    if (readIndex === -2) {
+      throw new Error('_flushSync failed')
+    }
+
+    // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
+    if (readIndex !== writeIndex) {
+      // TODO stream timeouts for some reason.
+      Atomics.wait(stream[kImpl].state, READ_INDEX, readIndex, 1000)
+    } else {
+      break
+    }
+
+    if (++spins === 10) {
+      throw new Error('_flushSync took too long (10s)')
+    }
+  }
+  // process._rawDebug('flushSync finished')
 }
 
 module.exports = ThreadStream
