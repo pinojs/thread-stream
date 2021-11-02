@@ -194,6 +194,7 @@ class ThreadStream extends EventEmitter {
     this[kImpl].destroyed = false
     this[kImpl].flushing = false
     this[kImpl].ready = false
+    this[kImpl].finished = false
     this[kImpl].buf = ''
 
     // TODO (fix): Make private?
@@ -300,6 +301,22 @@ class ThreadStream extends EventEmitter {
   get writable () {
     return !this[kImpl].destroyed && !this[kImpl].ending
   }
+
+  get writableEnded () {
+    return this[kImpl].ending
+  }
+
+  get writableFinished () {
+    return this[kImpl].finished
+  }
+
+  get writableNeedDrain () {
+    return this[kImpl].needDrain
+  }
+
+  get writableObjectMode () {
+    return false
+  }
 }
 
 function destroy (stream, err) {
@@ -369,6 +386,7 @@ function end (stream) {
     }
 
     process.nextTick(() => {
+      stream[kImpl].finished = true
       stream.emit('finish')
     })
   } catch (err) {
