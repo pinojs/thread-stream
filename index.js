@@ -331,7 +331,7 @@ class ThreadStream extends EventEmitter {
     wait(this._state, READ_INDEX, writeIndex, Infinity, (err, res) => {
       if (err) {
         this._destroy(err)
-        cb(err)
+        process.nextTick(cb, err)
         return
       }
       if (res === 'not-equal') {
@@ -339,7 +339,7 @@ class ThreadStream extends EventEmitter {
         this.flush(cb)
         return
       }
-      cb()
+      process.nextTick(cb)
     })
   }
 
