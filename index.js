@@ -144,8 +144,11 @@ function onWorkerMessage (msg) {
       // Replace the FakeWeakRef with a
       // proper one.
       this.stream = new WeakRef(stream)
-      this.ready = true
-      this.emit('ready')
+
+      stream.flush(() => {
+        this.ready = true
+        stream.emit('ready')
+      })
       break
     case 'ERROR':
       stream._destroy(msg.err)
