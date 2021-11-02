@@ -69,8 +69,10 @@ function createWorker (stream, opts) {
 
 function drain (stream) {
   assert(!stream._sync)
-  stream.needDrain = false
-  stream.emit('drain')
+  if (stream.needDrain) {
+    stream.needDrain = false
+    stream.emit('drain')
+  }
 }
 
 function nextFlush (stream) {
