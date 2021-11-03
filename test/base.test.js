@@ -9,7 +9,7 @@ const { MessageChannel } = require('worker_threads')
 const { once } = require('events')
 
 test('base sync=true', function (t) {
-  t.plan(7)
+  t.plan(15)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -18,23 +18,32 @@ test('base sync=true', function (t) {
     sync: true
   })
 
+  t.same(stream.writableObjectMode, false)
+
+  t.same(stream.writableFinished, false)
   stream.on('finish', () => {
+    t.same(stream.writableFinished, true)
     readFile(dest, 'utf8', (err, data) => {
       t.error(err)
       t.equal(data, 'hello world\nsomething else\n')
     })
   })
 
+  t.same(stream.closed, false)
   stream.on('close', () => {
+    t.same(stream.closed, true)
     t.notOk(stream.writable)
     t.pass('close emitted')
   })
 
+  t.same(stream.writableNeedDrain, false)
   t.ok(stream.write('hello world\n'))
   t.ok(stream.write('something else\n'))
   t.ok(stream.writable)
 
+  t.same(stream.writableEnded, false)
   stream.end()
+  t.same(stream.writableEnded, true)
 })
 
 test('overflow sync=true', function (t) {
@@ -87,6 +96,8 @@ test('overflow sync=false', function (t) {
 
   let count = 0
 
+  t.same(stream.writableNeedDrain, false)
+
   // Write 10 chars, 20 times
   function write () {
     if (count++ === 20) {
@@ -95,7 +106,9 @@ test('overflow sync=false', function (t) {
       return
     }
 
-    stream.write('aaaaaaaaaa')
+    if (!stream.write('aaaaaaaaaa')) {
+      t.same(stream.writableNeedDrain, true)
+    }
     // do not wait for drain event
     setImmediate(write)
   }
@@ -103,6 +116,7 @@ test('overflow sync=false', function (t) {
   write()
 
   stream.on('drain', () => {
+    t.same(stream.writableNeedDrain, false)
     t.pass('drain')
   })
 
