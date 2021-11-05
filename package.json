@@ -3,6 +3,9 @@
   "version": "0.12.1",
   "description": "A streaming way to send data to a Node.js Worker Thread",
   "main": "index.js",
+  "dependencies": {
+    "real-require": "^0.1.0"
+  },
   "devDependencies": {
     "desm": "^1.1.0",
     "fastbench": "^1.0.1",
