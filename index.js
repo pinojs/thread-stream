@@ -44,7 +44,8 @@ const registry = new FinalizationRegistry((worker) => {
 function createWorker (stream, opts) {
   const { filename, workerData } = opts
 
-  const toExecute = join(__dirname, 'lib', 'worker.js')
+  const bundlerOverrides = '__bundlerPathsOverrides' in globalThis ? globalThis.__bundlerPathsOverrides : {}
+  const toExecute = bundlerOverrides['thread-stream-worker'] || join(__dirname, 'lib', 'worker.js')
 
   const worker = new Worker(toExecute, {
     ...opts.workerOpts,
