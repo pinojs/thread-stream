@@ -212,10 +212,9 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker is ending')
     }
 
-    if (this[kImpl].flushing && this[kImpl].buf.length + data.length >= MAX_STRING) {
+    if (this[kImpl].buf.length + data.length >= MAX_STRING) {
       try {
         writeSync(this)
-        this[kImpl].flushing = true
       } catch (err) {
         destroy(this, err)
         return false
@@ -416,7 +415,11 @@ function writeSync (stream) {
       process.nextTick(drain, stream)
     }
   }
-  stream[kImpl].flushing = false
+
+  if (stream[kImpl].flushing) {
+    // TODO (fix): What if flushing? Wait for flushing to finish?
+    stream[kImpl].flushing = false
+  }
 
   while (stream[kImpl].buf.length !== 0) {
     const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
