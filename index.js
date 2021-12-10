@@ -270,7 +270,7 @@ class ThreadStream extends EventEmitter {
     }
 
     writeSync(this)
-    flushSync(this)
+    waitSync(this)
   }
 
   unref () {
@@ -410,7 +410,7 @@ function writeSync (stream) {
     const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
     let leftover = stream[kImpl].data.length - writeIndex
     if (leftover === 0) {
-      flushSync(stream)
+      waitSync(stream)
       Atomics.store(stream[kImpl].state, READ_INDEX, 0)
       Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
       continue
@@ -427,7 +427,7 @@ function writeSync (stream) {
       write(stream, toWrite, cb)
     } else {
       // multi-byte utf-8
-      flushSync(stream)
+      waitSync(stream)
       Atomics.store(stream[kImpl].state, READ_INDEX, 0)
       Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
 
@@ -445,8 +445,8 @@ function writeSync (stream) {
   }
 }
 
-function flushSync (stream) {
-  // process._rawDebug('flushSync started')
+function waitSync (stream) {
+  // process._rawDebug('waitSync started')
 
   const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
 
@@ -457,10 +457,10 @@ function flushSync (stream) {
     const readIndex = Atomics.load(stream[kImpl].state, READ_INDEX)
 
     if (readIndex === -2) {
-      throw new Error('_flushSync failed')
+      throw new Error('waitSync failed')
     }
 
-    // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
+    // process._rawDebug(`(waitSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
     if (readIndex !== writeIndex) {
       // TODO stream timeouts for some reason.
       Atomics.wait(stream[kImpl].state, READ_INDEX, readIndex, 1000)
@@ -469,10 +469,10 @@ function flushSync (stream) {
     }
 
     if (++spins === 10) {
-      throw new Error('_flushSync took too long (10s)')
+      throw new Error('waitSync took too long (10s)')
     }
   }
-  // process._rawDebug('flushSync finished')
+  // process._rawDebug('waitSync finished')
 }
 
 function flushAsync (stream, cb) {
