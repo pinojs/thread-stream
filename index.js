@@ -261,7 +261,8 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker has exited')
     }
 
-    flushAsync(this, cb)
+    writeSync(this) // TODO (fix): Make this async somehow.
+    waitAsync(this, cb)
   }
 
   flushSync () {
@@ -475,7 +476,7 @@ function waitSync (stream) {
   // process._rawDebug('waitSync finished')
 }
 
-function flushAsync (stream, cb) {
+function waitAsync (stream, cb) {
   // TODO write all .buf
   const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
   // process._rawDebug(`(flush) readIndex (${Atomics.load(this.state, READ_INDEX)}) writeIndex (${Atomics.load(this.state, WRITE_INDEX)})`)
@@ -487,7 +488,7 @@ function flushAsync (stream, cb) {
     }
     if (res === 'not-equal') {
       // TODO handle deadlock
-      flushAsync(stream, cb)
+      waitAsync(stream, cb)
       return
     }
     process.nextTick(cb)
