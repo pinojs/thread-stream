@@ -477,7 +477,6 @@ function waitSync (stream) {
 }
 
 function waitAsync (stream, cb) {
-  // TODO write all .buf
   const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
   // process._rawDebug(`(flush) readIndex (${Atomics.load(this.state, READ_INDEX)}) writeIndex (${Atomics.load(this.state, WRITE_INDEX)})`)
   wait(stream[kImpl].state, READ_INDEX, writeIndex, Infinity, (err, res) => {
