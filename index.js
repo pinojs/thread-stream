@@ -106,6 +106,11 @@ function nextFlush (stream) {
         Atomics.store(stream[kImpl].state, READ_INDEX, 0)
         Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
 
+        if (stream[kImpl].buf.length === 0) {
+          nextFlush(stream)
+          return
+        }
+
         // Find a toWrite length that fits the buffer
         // it must exists as the buffer is at least 4 bytes length
         // and the max utf-8 length for a char is 4 bytes.
@@ -416,11 +421,6 @@ function writeSync (stream) {
     }
   }
 
-  if (stream[kImpl].flushing) {
-    // TODO (fix): What if flushing? Wait for flushing to finish?
-    stream[kImpl].flushing = false
-  }
-
   while (stream[kImpl].buf.length !== 0) {
     const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
     let leftover = stream[kImpl].data.length - writeIndex
@@ -461,10 +461,6 @@ function writeSync (stream) {
 }
 
 function flushSync (stream) {
-  if (stream[kImpl].flushing) {
-    throw new Error('unable to flush while flushing')
-  }
-
   // process._rawDebug('flushSync started')
 
   const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
