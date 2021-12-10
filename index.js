@@ -261,22 +261,7 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker has exited')
     }
 
-    // TODO write all .buf
-    const writeIndex = Atomics.load(this[kImpl].state, WRITE_INDEX)
-    // process._rawDebug(`(flush) readIndex (${Atomics.load(this.state, READ_INDEX)}) writeIndex (${Atomics.load(this.state, WRITE_INDEX)})`)
-    wait(this[kImpl].state, READ_INDEX, writeIndex, Infinity, (err, res) => {
-      if (err) {
-        destroy(this, err)
-        process.nextTick(cb, err)
-        return
-      }
-      if (res === 'not-equal') {
-        // TODO handle deadlock
-        this.flush(cb)
-        return
-      }
-      process.nextTick(cb)
-    })
+    flushAsync(this, cb)
   }
 
   flushSync () {
@@ -488,6 +473,25 @@ function flushSync (stream) {
     }
   }
   // process._rawDebug('flushSync finished')
+}
+
+function flushAsync (stream, cb) {
+  // TODO write all .buf
+  const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
+  // process._rawDebug(`(flush) readIndex (${Atomics.load(this.state, READ_INDEX)}) writeIndex (${Atomics.load(this.state, WRITE_INDEX)})`)
+  wait(stream[kImpl].state, READ_INDEX, writeIndex, Infinity, (err, res) => {
+    if (err) {
+      destroy(stream, err)
+      process.nextTick(cb, err)
+      return
+    }
+    if (res === 'not-equal') {
+      // TODO handle deadlock
+      flushAsync(stream, cb)
+      return
+    }
+    process.nextTick(cb)
+  })
 }
 
 module.exports = ThreadStream
