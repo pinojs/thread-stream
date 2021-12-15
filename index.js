@@ -213,7 +213,7 @@ class ThreadStream extends EventEmitter {
       throw new Error('the worker is ending')
     }
 
-    if (this[kImpl].flushing && this[kImpl].buf.length + data.length >= MAX_STRING) {
+    if (this[kImpl].buf.length + data.length >= MAX_STRING) {
       try {
         writeSync(this)
         this[kImpl].flushing = true
