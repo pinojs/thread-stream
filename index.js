@@ -84,8 +84,6 @@ function nextFlush (stream) {
 
   if (leftover > 0) {
     if (stream[kImpl].buf.length === 0) {
-      stream[kImpl].flushing = false
-
       if (stream[kImpl].ending) {
         end(stream)
       } else if (stream[kImpl].needDrain) {
@@ -193,7 +191,6 @@ class ThreadStream extends EventEmitter {
     this[kImpl].ended = false
     this[kImpl].needDrain = false
     this[kImpl].destroyed = false
-    this[kImpl].flushing = false
     this[kImpl].ready = false
     this[kImpl].finished = false
     this[kImpl].errored = null
@@ -216,12 +213,13 @@ class ThreadStream extends EventEmitter {
     if (this[kImpl].buf.length + data.length >= MAX_STRING) {
       try {
         writeSync(this)
-        this[kImpl].flushing = true
       } catch (err) {
         destroy(this, err)
         return false
       }
     }
+
+    const flushing = !!this[kImpl].buf
 
     this[kImpl].buf += data
 
@@ -235,8 +233,7 @@ class ThreadStream extends EventEmitter {
       }
     }
 
-    if (!this[kImpl].flushing) {
-      this[kImpl].flushing = true
+    if (!flushing) {
       setImmediate(nextFlush, this)
     }
 
@@ -368,7 +365,7 @@ function write (stream, data, cb) {
 }
 
 function end (stream) {
-  if (stream[kImpl].ended || !stream[kImpl].ending || stream[kImpl].flushing) {
+  if (stream[kImpl].ended || !stream[kImpl].ending || stream[kImpl].buf) {
     return
   }
   stream[kImpl].ended = true
@@ -417,7 +414,6 @@ function writeSync (stream) {
       process.nextTick(drain, stream)
     }
   }
-  stream[kImpl].flushing = false
 
   while (stream[kImpl].buf.length !== 0) {
     const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
@@ -459,10 +455,6 @@ function writeSync (stream) {
 }
 
 function flushSync (stream) {
-  if (stream[kImpl].flushing) {
-    throw new Error('unable to flush while flushing')
-  }
-
   // process._rawDebug('flushSync started')
 
   const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
