@@ -1,6 +1,9 @@
 'use strict'
 
 const { test } = require('tap')
+const { join } = require('path')
+const { MessageChannel } = require('worker_threads')
+const { once } = require('events')
 const ThreadStream = require('..')
 
 const isYarnPnp = process.versions.pnp !== undefined
@@ -26,4 +29,28 @@ test('yarn module resolution', { skip: !isYarnPnp }, t => {
   t.ok(stream.write('hello world\n'))
   t.ok(stream.writable)
   stream.end()
+})
+
+test('yarn module resolution for directories with special characters', { skip: !isYarnPnp }, async t => {
+  t.plan(3)
+
+  const { port1, port2 } = new MessageChannel()
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'dir with spaces', 'test-package.zip', 'worker.js'),
+    workerData: { port: port1 },
+    workerOpts: {
+      transferList: [port1]
+    },
+    sync: false
+  })
+  t.teardown(() => {
+    stream.end()
+  })
+
+  t.ok(stream.write('hello world\n'))
+  t.ok(stream.write('something else\n'))
+
+  const [strings] = await once(port2, 'message')
+
+  t.equal(strings, 'hello world\nsomething else\n')
 })
