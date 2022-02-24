@@ -50,7 +50,7 @@ test('break up utf8 multibyte (async)', (t) => {
   stream.end()
 })
 
-test('break up utf8 multibyte several times bigger', (t) => {
+test('break up utf8 multibyte several times bigger than write buffer', (t) => {
   t.plan(2)
   const longString = '\u03A3'.repeat(32)
 
