@@ -110,7 +110,7 @@ function nextFlush (stream) {
         // Find a toWrite length that fits the buffer
         // it must exists as the buffer is at least 4 bytes length
         // and the max utf-8 length for a char is 4 bytes.
-        while (toWriteBytes > stream[kImpl].buf.length) {
+        while (toWriteBytes > stream[kImpl].data.length) {
           leftover = leftover / 2
           toWrite = stream[kImpl].buf.slice(0, leftover)
           toWriteBytes = Buffer.byteLength(toWrite)
