@@ -21,6 +21,7 @@
     "test:yarn": "tap \"test/**/*.test.js\" --no-check-coverage",
     "prepare": "husky install"
   },
+  "standard": { "ignore": ["test/ts/**/*"] },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcollina/thread-stream.git"
