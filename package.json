@@ -15,14 +15,17 @@
     "sonic-boom": "^2.0.1",
     "standard": "^16.0.3",
     "tap": "^16.0.0",
-    "ts-node": "^10.0.0",
-    "typescript": "^4.4.0",
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.0",
     "why-is-node-running": "^2.2.0"
   },
   "scripts": {
-    "test": "standard && tap test/*.test.*js && tap --ts test/*.test.*ts",
-    "test:ci": "standard && tap \"test/**/*.test.*js\" --no-check-coverage --coverage-report=lcovonly",
-    "test:yarn": "tap \"test/**/*.test.js\" --no-check-coverage",
+    "test": "standard && npm run transpile && tap test/*.test.*js && tap --ts test/*.test.*ts",
+    "test:ci": "standard && npm run transpile && npm run test:ci:js && npm run test:ci:ts",
+    "test:ci:js": "tap --no-check-coverage --coverage-report=lcovonly \"test/**/*.test.*js\"",
+    "test:ci:ts": "tap --ts --no-check-coverage --coverage-report=lcovonly \"test/**/*.test.*ts\"",
+    "test:yarn": "npm run transpile && tap \"test/**/*.test.js\" --no-check-coverage",
+    "transpile": "sh ./test/ts/transpile.sh",
     "prepare": "husky install"
   },
   "standard": { "ignore": ["test/ts/**/*"] },

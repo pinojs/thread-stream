@@ -42,3 +42,6 @@ basic('(ts -> es6) esm with file URL', pathToFileURL(join(import.meta.url, 'ts',
 
 basic('(ts -> es2017) esm with path', join(import.meta.url, 'ts', 'to-file.es2017.mjs'))
 basic('(ts -> es2017) esm with file URL', pathToFileURL(join(import.meta.url, 'ts', 'to-file.es2017.mjs')).href)
+
+basic('(ts -> esnext) esm with path', join(import.meta.url, 'ts', 'to-file.esnext.mjs'))
+basic('(ts -> esnext) esm with file URL', pathToFileURL(join(import.meta.url, 'ts', 'to-file.esnext.mjs')).href)

@@ -4,33 +4,36 @@ import ThreadStream from '../index.js'
 import { join } from 'path'
 import { file } from './helper.js'
 
-function basic (text: string, filename: string): void {
-  test(text, function (t) {
-    t.plan(5)
 
-    const dest = file()
-    const stream = new ThreadStream({
-      filename,
-      workerData: { dest },
-      sync: true
-    })
+test('typescript module', function (t) {
+  if (process.platform === 'win32') {
+    // TODO: Implement .ts files loading support for Windows
+    t.plan(0)
+    return
+  }
 
-    stream.on('finish', () => {
-      readFile(dest, 'utf8', (err, data) => {
-        t.error(err)
-        t.equal(data, 'hello world\nsomething else\n')
-      })
-    })
+  t.plan(5)
 
-    stream.on('close', () => {
-      t.pass('close emitted')
-    })
-
-    t.ok(stream.write('hello world\n'))
-    t.ok(stream.write('something else\n'))
-
-    stream.end()
+  const dest = file()
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'ts', 'to-file.ts'),
+    workerData: { dest },
+    sync: true
   })
-}
 
-basic('typescript module', join(__dirname, 'ts', 'to-file.ts'))
+  stream.on('finish', () => {
+    readFile(dest, 'utf8', (err, data) => {
+      t.error(err)
+      t.equal(data, 'hello world\nsomething else\n')
+    })
+  })
+
+  stream.on('close', () => {
+    t.pass('close emitted')
+  })
+
+  t.ok(stream.write('hello world\n'))
+  t.ok(stream.write('something else\n'))
+
+  stream.end()
+})
