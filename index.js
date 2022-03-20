@@ -104,6 +104,11 @@ function nextFlush (stream) {
     } else {
       // multi-byte utf-8
       stream.flush(() => {
+        // err is already handled in flush()
+        if (stream.destroyed) {
+          return
+        }
+
         Atomics.store(stream[kImpl].state, READ_INDEX, 0)
         Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
 
@@ -255,7 +260,10 @@ class ThreadStream extends EventEmitter {
 
   flush (cb) {
     if (this[kImpl].destroyed) {
-      throw new Error('the worker has exited')
+      if (typeof cb === 'function') {
+        process.nextTick(cb, new Error('the worker has exited'))
+      }
+      return
     }
 
     // TODO write all .buf
