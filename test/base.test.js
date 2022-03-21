@@ -246,3 +246,26 @@ test('pass down MessagePorts', async function (t) {
 
   t.equal(strings, 'hello world\nsomething else\n')
 })
+
+test('destroy does not error', function (t) {
+  t.plan(3)
+
+  const dest = file()
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'to-file.js'),
+    workerData: { dest },
+    sync: false
+  })
+
+  stream.on('ready', () => {
+    t.pass('ready emitted')
+    stream.worker.terminate()
+  })
+
+  stream.on('error', (err) => {
+    t.equal(err.message, 'The worker thread exited')
+    stream.flush((err) => {
+      t.equal(err.message, 'the worker has exited')
+    })
+  })
+})
