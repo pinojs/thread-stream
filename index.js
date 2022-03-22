@@ -251,7 +251,7 @@ class ThreadStream extends EventEmitter {
 
   end () {
     if (this[kImpl].destroyed) {
-      throw new Error('the worker has exited')
+      return
     }
 
     this[kImpl].ending = true
@@ -286,7 +286,7 @@ class ThreadStream extends EventEmitter {
 
   flushSync () {
     if (this[kImpl].destroyed) {
-      throw new Error('the worker has exited')
+      return
     }
 
     writeSync(this)
