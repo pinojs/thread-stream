@@ -249,9 +249,12 @@ class ThreadStream extends EventEmitter {
     return !this[kImpl].needDrain
   }
 
-  end () {
+  end (cb) {
     if (this[kImpl].destroyed) {
-      throw new Error('the worker has exited')
+      if (typeof cb === 'function') {
+        process.nextTick(cb, new Error('the worker has exited'))
+      }
+      return
     }
 
     this[kImpl].ending = true
@@ -284,9 +287,12 @@ class ThreadStream extends EventEmitter {
     })
   }
 
-  flushSync () {
+  flushSync (cb) {
     if (this[kImpl].destroyed) {
-      throw new Error('the worker has exited')
+      if (typeof cb === 'function') {
+        process.nextTick(cb, new Error('the worker has exited'))
+      }
+      return
     }
 
     writeSync(this)

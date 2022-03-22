@@ -248,7 +248,7 @@ test('pass down MessagePorts', async function (t) {
 })
 
 test('destroy does not error', function (t) {
-  t.plan(3)
+  t.plan(5)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -265,6 +265,12 @@ test('destroy does not error', function (t) {
   stream.on('error', (err) => {
     t.equal(err.message, 'The worker thread exited')
     stream.flush((err) => {
+      t.equal(err.message, 'the worker has exited')
+    })
+    stream.flushSync((err) => {
+      t.equal(err.message, 'the worker has exited')
+    })
+    stream.end((err) => {
       t.equal(err.message, 'the worker has exited')
     })
   })
