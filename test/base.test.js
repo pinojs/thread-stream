@@ -267,11 +267,7 @@ test('destroy does not error', function (t) {
     stream.flush((err) => {
       t.equal(err.message, 'the worker has exited')
     })
-    stream.flushSync((err) => {
-      t.equal(err.message, 'the worker has exited')
-    })
-    stream.end((err) => {
-      t.equal(err.message, 'the worker has exited')
-    })
+    t.doesNotThrow(() => stream.flushSync())
+    t.doesNotThrow(() => stream.end())
   })
 })
