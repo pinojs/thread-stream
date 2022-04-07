@@ -6,12 +6,6 @@ import { file } from './helper.js'
 
 
 test('typescript module', function (t) {
-  if (process.platform === 'win32') {
-    // TODO: Implement .ts files loading support for Windows
-    t.plan(0)
-    return
-  }
-
   t.plan(5)
 
   const dest = file()
