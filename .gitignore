@@ -111,6 +111,3 @@ dist
 
 # Generated files
 test/ts/*js
-
-# VSCode IDE files
-.vscode/
