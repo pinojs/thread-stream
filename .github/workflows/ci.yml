@@ -12,6 +12,9 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
 
+    permissions:
+      contents: read
+
     strategy:
       matrix:
         node-version: [12, 14, 16]
@@ -55,7 +58,10 @@ jobs:
   automerge:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
     steps:
-      - uses: fastify/github-action-merge-dependabot@v3.0.2
+      - uses: fastify/github-action-merge-dependabot@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
