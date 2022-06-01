@@ -111,3 +111,4 @@ dist
 
 # Generated files
 test/ts/*js
+/.idea/
