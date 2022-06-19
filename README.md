@@ -1,7 +1,6 @@
 # thread-stream
 [![npm version](https://img.shields.io/npm/v/thread-stream)](https://www.npmjs.com/package/thread-stream)
 [![Build Status](https://img.shields.io/github/workflow/status/pinojs/thread-stream/CI)](https://github.com/pinojs/thread-stream/actions)
-[![Known Vulnerabilities](https://snyk.io/test/github/pinojs/thread-stream/badge.svg)](https://snyk.io/test/github/pinojs/thread-stream)
 [![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat)](https://standardjs.com/)
 
 A streaming way to send data to a Node.js Worker Thread.
