@@ -51,7 +51,6 @@ jobs:
           yarn set version berry
           echo "nodeLinker: pnp" >> .yarnrc.yml
           echo "pnpMode: loose" >> .yarnrc.yml
-          echo "pnpEnableEsmLoader: false" >> .yarnrc.yml
           yarn add -D pino-elasticsearch@^6.0.0
           yarn install
         env:
