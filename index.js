@@ -136,7 +136,7 @@ function nextFlush (stream) {
     })
   } else {
     // This should never happen
-    throw new Error('overwritten')
+    destroy(stream, new Error('overwritten'))
   }
 }
 
@@ -164,7 +164,7 @@ function onWorkerMessage (msg) {
       destroy(stream, msg.err)
       break
     default:
-      throw new Error('this should not happen: ' + msg.code)
+      destroy(stream, new Error('this should not happen: ' + msg.code))
   }
 }
 
@@ -177,7 +177,7 @@ function onWorkerExit (code) {
   registry.unregister(stream)
   stream.worker.exited = true
   stream.worker.off('exit', onWorkerExit)
-  destroy(stream, code !== 0 ? new Error('The worker thread exited') : null)
+  destroy(stream, code !== 0 ? new Error('the worker thread exited') : null)
 }
 
 class ThreadStream extends EventEmitter {
@@ -211,11 +211,13 @@ class ThreadStream extends EventEmitter {
 
   write (data) {
     if (this[kImpl].destroyed) {
-      throw new Error('the worker has exited')
+      error(this, new Error('the worker has exited'))
+      return false
     }
 
     if (this[kImpl].ending) {
-      throw new Error('the worker is ending')
+      error(this, new Error('the worker is ending'))
+      return false
     }
 
     if (this[kImpl].flushing && this[kImpl].buf.length + data.length >= MAX_STRING) {
@@ -338,6 +340,12 @@ class ThreadStream extends EventEmitter {
   }
 }
 
+function error (stream, err) {
+  setImmediate(() => {
+    stream.emit('error', err)
+  })
+}
+
 function destroy (stream, err) {
   if (stream[kImpl].destroyed) {
     return
@@ -346,7 +354,7 @@ function destroy (stream, err) {
 
   if (err) {
     stream[kImpl].errored = err
-    stream.emit('error', err)
+    error(stream, err)
   }
 
   if (!stream.worker.exited) {
@@ -399,11 +407,13 @@ function end (stream) {
       readIndex = Atomics.load(stream[kImpl].state, READ_INDEX)
 
       if (readIndex === -2) {
-        throw new Error('end() failed')
+        destroy(stream, new Error('end() failed'))
+        return
       }
 
       if (++spins === 10) {
-        throw new Error('end() took too long (10s)')
+        destroy(stream, new Error('end() took too long (10s)'))
+        return
       }
     }
 
@@ -437,7 +447,8 @@ function writeSync (stream) {
       continue
     } else if (leftover < 0) {
       // stream should never happen
-      throw new Error('overwritten')
+      destroy(stream, new Error('overwritten'))
+      return
     }
 
     let toWrite = stream[kImpl].buf.slice(0, leftover)
@@ -468,7 +479,8 @@ function writeSync (stream) {
 
 function flushSync (stream) {
   if (stream[kImpl].flushing) {
-    throw new Error('unable to flush while flushing')
+    destroy(stream, new Error('unable to flush while flushing'))
+    return
   }
 
   // process._rawDebug('flushSync started')
@@ -482,7 +494,8 @@ function flushSync (stream) {
     const readIndex = Atomics.load(stream[kImpl].state, READ_INDEX)
 
     if (readIndex === -2) {
-      throw new Error('_flushSync failed')
+      destroy(stream, new Error('_flushSync failed'))
+      return
     }
 
     // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
@@ -494,7 +507,8 @@ function flushSync (stream) {
     }
 
     if (++spins === 10) {
-      throw new Error('_flushSync took too long (10s)')
+      destroy(stream, new Error('_flushSync took too long (10s)'))
+      return
     }
   }
   // process._rawDebug('flushSync finished')
