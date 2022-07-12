@@ -447,8 +447,7 @@ function writeSync (stream) {
       continue
     } else if (leftover < 0) {
       // stream should never happen
-      destroy(stream, new Error('overwritten'))
-      return
+      throw new Error('overwritten')
     }
 
     let toWrite = stream[kImpl].buf.slice(0, leftover)
@@ -479,8 +478,7 @@ function writeSync (stream) {
 
 function flushSync (stream) {
   if (stream[kImpl].flushing) {
-    destroy(stream, new Error('unable to flush while flushing'))
-    return
+    throw new Error('unable to flush while flushing')
   }
 
   // process._rawDebug('flushSync started')
@@ -494,8 +492,7 @@ function flushSync (stream) {
     const readIndex = Atomics.load(stream[kImpl].state, READ_INDEX)
 
     if (readIndex === -2) {
-      destroy(stream, new Error('_flushSync failed'))
-      return
+      throw Error('_flushSync failed')
     }
 
     // process._rawDebug(`(flushSync) readIndex (${readIndex}) writeIndex (${writeIndex})`)
@@ -507,8 +504,7 @@ function flushSync (stream) {
     }
 
     if (++spins === 10) {
-      destroy(stream, new Error('_flushSync took too long (10s)'))
-      return
+      throw new Error('_flushSync took too long (10s)')
     }
   }
   // process._rawDebug('flushSync finished')
