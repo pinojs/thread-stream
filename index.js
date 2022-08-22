@@ -163,6 +163,13 @@ function onWorkerMessage (msg) {
     case 'ERROR':
       destroy(stream, msg.err)
       break
+    case 'EVENT':
+      if (Array.isArray(msg.args)) {
+        stream.emit(msg.name, ...msg.args)
+      } else {
+        stream.emit(msg.name, msg.args)
+      }
+      break
     default:
       destroy(stream, new Error('this should not happen: ' + msg.code))
   }

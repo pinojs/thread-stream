@@ -84,6 +84,31 @@ stream.end()
 
 This module works with `yarn` in PnP (plug'n play) mode too!
 
+### Emit events
+
+You can emit events on the ThreadStream from your worker using [`worker.parentPort.postMessage()`](https://nodejs.org/api/worker_threads.html#workerparentport).
+The message (JSON object) must have the following data structure:
+
+```js
+parentPort.postMessage({
+  code: 'EVENT',
+  name: 'eventName',
+  args: ['list', 'of', 'args', 123, new Error('Boom')]
+})
+```
+
+On your ThreadStream, you can add a listener function for this event name:
+
+```js
+const stream = new ThreadStream({
+  filename: join(__dirname, 'worker.js'),
+  workerData: {},
+})
+stream.on('eventName', function (a, b, c, n, err) {
+  console.log('received:', a, b, c, n, err) // received: list of args 123 Error: Boom
+})
+```
+
 ## License
 
 MIT
