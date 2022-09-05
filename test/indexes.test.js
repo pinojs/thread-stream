@@ -1,6 +1,6 @@
 'use strict'
 
-const test = require('tape')
+const { test } = require('tap')
 const indexes = require('../lib/indexes')
 
 for (const index of Object.keys(indexes)) {
