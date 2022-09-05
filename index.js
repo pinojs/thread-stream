@@ -1,5 +1,6 @@
 'use strict'
 
+const { version } = require('./package.json')
 const { EventEmitter } = require('events')
 const { Worker } = require('worker_threads')
 const { join } = require('path')
@@ -29,6 +30,7 @@ class FakeWeakRef {
 
 const FinalizationRegistry = global.FinalizationRegistry || class FakeFinalizationRegistry {
   register () {}
+
   unregister () {}
 }
 
@@ -55,7 +57,12 @@ function createWorker (stream, opts) {
         : pathToFileURL(filename).href,
       dataBuf: stream[kImpl].dataBuf,
       stateBuf: stream[kImpl].stateBuf,
-      workerData
+      workerData: {
+        $context: {
+          threadStreamVersion: version
+        },
+        ...workerData
+      }
     }
   })
 

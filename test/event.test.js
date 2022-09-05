@@ -4,12 +4,13 @@ const { test } = require('tap')
 const { join } = require('path')
 const ThreadStream = require('..')
 
-test('event propagate', function (t) {
+test('event propagate', (t) => {
   const stream = new ThreadStream({
     filename: join(__dirname, 'emit-event.js'),
     workerData: {},
     sync: true
   })
+  t.on('end', () => stream.end())
   stream.on('socketError', function (a, b, c, n, error) {
     t.same(a, 'list')
     t.same(b, 'of')
@@ -19,5 +20,4 @@ test('event propagate', function (t) {
     t.end()
   })
   stream.write('hello')
-  stream.end()
 })
