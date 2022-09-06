@@ -3,6 +3,7 @@
 const { test } = require('tap')
 const { join } = require('path')
 const ThreadStream = require('..')
+require('why-is-node-running')
 
 test('event propagate', (t) => {
   const stream = new ThreadStream({

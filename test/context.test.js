@@ -4,6 +4,7 @@ const { test } = require('tap')
 const { join } = require('path')
 const ThreadStream = require('..')
 const { version } = require('../package.json')
+require('why-is-node-running')
 
 test('get context', (t) => {
   const stream = new ThreadStream({
