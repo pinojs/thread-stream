@@ -3,21 +3,18 @@
 const { test } = require('tap')
 const { join } = require('path')
 const ThreadStream = require('..')
+const { version } = require('../package.json')
 require('why-is-node-running')
 
-test('event propagate', (t) => {
+test('get context', (t) => {
   const stream = new ThreadStream({
-    filename: join(__dirname, 'emit-event.js'),
+    filename: join(__dirname, 'get-context.js'),
     workerData: {},
     sync: true
   })
   t.on('end', () => stream.end())
-  stream.on('socketError', function (a, b, c, n, error) {
-    t.same(a, 'list')
-    t.same(b, 'of')
-    t.same(c, 'args')
-    t.same(n, 123)
-    t.same(error, new Error('unable to write data to the TCP socket'))
+  stream.on('context', (ctx) => {
+    t.same(ctx.threadStreamVersion, version)
     t.end()
   })
   stream.write('hello')
