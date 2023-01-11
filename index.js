@@ -51,6 +51,7 @@ function createWorker (stream, opts) {
 
   const worker = new Worker(toExecute, {
     ...opts.workerOpts,
+    trackUnmanagedFds: false,
     workerData: {
       filename: filename.indexOf('file://') === 0
         ? filename
