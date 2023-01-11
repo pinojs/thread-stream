@@ -1,6 +1,6 @@
 {
   "name": "thread-stream",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "A streaming way to send data to a Node.js Worker Thread",
   "main": "index.js",
   "types": "index.d.ts",
