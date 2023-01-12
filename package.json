@@ -8,11 +8,12 @@
     "real-require": "^0.2.0"
   },
   "devDependencies": {
-    "@types/node": "^18.0.0",
+    "@types/node": "^18.11.18",
     "@types/tap": "^15.0.0",
     "desm": "^1.3.0",
     "fastbench": "^1.0.1",
     "husky": "^8.0.1",
+    "pino-elasticsearch": "^6.0.0",
     "sonic-boom": "^3.0.0",
     "standard": "^17.0.0",
     "tap": "^16.2.0",
@@ -25,11 +26,15 @@
     "test:ci": "standard && npm run transpile && npm run test:ci:js && npm run test:ci:ts",
     "test:ci:js": "tap --no-check-coverage --coverage-report=lcovonly \"test/**/*.test.*js\"",
     "test:ci:ts": "tap --ts --no-check-coverage --coverage-report=lcovonly \"test/**/*.test.*ts\"",
-    "test:yarn": "npm run transpile && tap \"test/**/*.test.js\" --no-check-coverage",
+    "test:yarn": "SKIP_PROCESS_EXIT_CHECK=true npm run transpile && npm run test:ci:js",
     "transpile": "sh ./test/ts/transpile.sh",
     "prepare": "husky install"
   },
-  "standard": { "ignore": ["test/ts/**/*"] },
+  "standard": {
+    "ignore": [
+      "test/ts/**/*"
+    ]
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mcollina/thread-stream.git"
