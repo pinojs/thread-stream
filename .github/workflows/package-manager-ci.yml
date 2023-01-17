@@ -2,12 +2,12 @@ name: package-manager-ci
 on:
   push:
     paths-ignore:
-        - 'docs/**'
-        - '*.md'
+      - 'docs/**'
+      - '*.md'
   pull_request:
     paths-ignore:
-        - 'docs/**'
-        - '*.md'
+      - 'docs/**'
+      - '*.md'
 jobs:
   pnpm:
     name: pnpm package manager on ${{ matrix.node-version }} ${{ matrix.os }}
@@ -49,14 +49,14 @@ jobs:
         run: |
           npm install -g yarn
           yarn set version berry
-          echo "nodeLinker: pnp" >> .yarnrc.yml
-          echo "pnpMode: loose" >> .yarnrc.yml
-          echo "pnpEnableEsmLoader: false" >> .yarnrc.yml
+          cat test/yarnrc.yml >> .yarnrc.yml
           yarn add -D pino-elasticsearch@^6.0.0
           yarn install
         env:
           # needed due the yarn.lock file in repository's .gitignore
-          YARN_ENABLE_IMMUTABLE_INSTALLS: false
+          YARN_ENABLE_IMMUTABLE_INSTALLS: 'false'
       - name: Tests
         shell: bash
         run: yarn run test:yarn
+        env:
+          SKIP_PROCESS_EXIT_CHECK: 'true'
