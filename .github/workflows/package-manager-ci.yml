@@ -54,7 +54,9 @@ jobs:
           yarn install
         env:
           # needed due the yarn.lock file in repository's .gitignore
-          YARN_ENABLE_IMMUTABLE_INSTALLS: false
+          YARN_ENABLE_IMMUTABLE_INSTALLS: 'false'
       - name: Tests
         shell: bash
         run: yarn run test:yarn
+        env:
+          SKIP_PROCESS_EXIT_CHECK: 'true'

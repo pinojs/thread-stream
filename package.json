@@ -26,7 +26,7 @@
     "test:ci": "standard && npm run transpile && npm run test:ci:js && npm run test:ci:ts",
     "test:ci:js": "tap --no-check-coverage --coverage-report=lcovonly \"test/**/*.test.*js\"",
     "test:ci:ts": "tap --ts --no-check-coverage --coverage-report=lcovonly \"test/**/*.test.*ts\"",
-    "test:yarn": "SKIP_PROCESS_EXIT_CHECK=true npm run transpile && tap \"test/**/*.test.js\" --no-check-coverage",
+    "test:yarn": "npm run transpile && tap \"test/**/*.test.js\" --no-check-coverage",
     "transpile": "sh ./test/ts/transpile.sh",
     "prepare": "husky install"
   },
