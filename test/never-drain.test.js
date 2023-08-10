@@ -27,6 +27,7 @@ test('emit warning when the worker gracefully exit without the stream ended', as
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-next.js')
   })
+  stream.unref()
 
   let streamWarning
   function saveWarning (e) {
@@ -36,11 +37,12 @@ test('emit warning when the worker gracefully exit without the stream ended', as
   }
   process.on('warning', saveWarning)
 
-  for (let i = 0; i < 10_000; i++) {
+  const data = 'hello'.repeat(10)
+  for (let i = 0; i < 1000; i++) {
     if (streamWarning?.message === expectedWarning) {
       break
     }
-    stream.write('hello')
+    stream.write(data)
     await new Promise((resolve) => {
       setTimeout(resolve, 1)
     })
