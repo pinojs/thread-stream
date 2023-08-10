@@ -2,9 +2,23 @@ const { test } = require('tap')
 const ThreadStream = require('../index')
 const { join } = require('path')
 
-function sleep (ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
+function retryUntilTimeout (fn, timeout) {
+  const start = Date.now()
+  return new Promise((resolve, reject) => {
+    async function run () {
+      if (fn()) {
+        resolve()
+        return
+      }
+
+      if (Date.now() - start >= timeout) {
+        reject(new Error('timeout'))
+        return
+      }
+      setTimeout(run, 10)
+    }
+
+    run()
   })
 }
 
@@ -33,8 +47,7 @@ test('emit warning when the worker gracefully exit without the stream ended', as
   }
 
   process.off('warning', saveWarning)
-  await sleep(10)
-
-  t.equal(stream.destroyed, true)
   t.equal(streamWarning?.message, expectedWarning)
+
+  await retryUntilTimeout(() => stream.destroyed === true, 3000)
 })
