@@ -49,5 +49,5 @@ test('emit warning when the worker gracefully exit without the stream ended', as
   process.off('warning', saveWarning)
   t.equal(streamWarning?.message, expectedWarning)
 
-  await retryUntilTimeout(() => stream.destroyed === true, 3000)
+  await retryUntilTimeout(() => stream.worker.exited === true, 3000)
 })
