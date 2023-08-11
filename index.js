@@ -178,6 +178,9 @@ function onWorkerMessage (msg) {
         stream.emit(msg.name, msg.args)
       }
       break
+    case 'WARNING':
+      process.emitWarning(msg.err)
+      break
     default:
       destroy(stream, new Error('this should not happen: ' + msg.code))
   }
