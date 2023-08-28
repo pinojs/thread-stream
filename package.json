@@ -18,7 +18,7 @@
     "standard": "^17.0.0",
     "tap": "^16.2.0",
     "ts-node": "^10.8.0",
-    "typescript": "^4.7.2",
+    "typescript": "^5.2.2",
     "why-is-node-running": "^2.2.2"
   },
   "scripts": {
