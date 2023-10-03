@@ -28,13 +28,16 @@ class FakeWeakRef {
   }
 }
 
-const FinalizationRegistry = global.FinalizationRegistry || class FakeFinalizationRegistry {
+class FakeFinalizationRegistry {
   register () {}
 
   unregister () {}
 }
 
-const WeakRef = global.WeakRef || FakeWeakRef
+// Currently using FinalizationRegistry with code coverage breaks the world
+// Ref: https://github.com/nodejs/node/issues/49344
+const FinalizationRegistry = process.env.NODE_V8_COVERAGE ? FakeFinalizationRegistry : global.FinalizationRegistry || FakeFinalizationRegistry
+const WeakRef = process.env.NODE_V8_COVERAGE ? FakeWeakRef : global.WeakRef || FakeWeakRef
 
 const registry = new FinalizationRegistry((worker) => {
   if (worker.exited) {
