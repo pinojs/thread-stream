@@ -38,7 +38,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        node-version: [14, 16, 18]
+        node-version: [14, 16, 18, 20]
         os: [macos-latest, ubuntu-latest, windows-latest]
         exclude:
           - os: windows-latest
@@ -60,23 +60,6 @@ jobs:
 
       - name: Run tests
         run: npm run test:ci
-
-      - name: Coveralls Parallel
-        uses: coverallsapp/github-action@v2.2.3
-        with:
-          github-token: ${{ secrets.github_token }}
-          parallel: true
-          flag-name: run-${{ matrix.node-version }}-${{ matrix.os }}
-
-  coverage:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Coveralls Finished
-        uses: coverallsapp/github-action@v2.2.3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel-finished: true
 
   automerge:
     name: Automerge Dependabot PRs
