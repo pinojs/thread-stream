@@ -109,6 +109,27 @@ stream.on('eventName', function (a, b, c, n, err) {
 })
 ```
 
+### Post Messages
+
+You can post messages to the worker by emitting a `message` event on the ThreadStream.
+
+```js
+const stream = new ThreadStream({
+  filename: join(__dirname, 'worker.js'),
+  workerData: {},
+})
+stream.emit('message', message)
+```
+
+On your worker, you can listen for this message using [`worker.parentPort.on('message', cb)`](https://nodejs.org/api/worker_threads.html#event-message).
+
+```js
+const { parentPort } = require('worker_threads')
+parentPort.on('message', function (message) {
+  console.log('received:', message)
+})
+```
+
 ## License
 
 MIT
