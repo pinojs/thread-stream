@@ -68,6 +68,26 @@ declare class ThreadStream extends EventEmitter {
    * @throws {Error} if the stream is already flushing, if it fails to flush or if it takes more than 10 seconds to flush.
    */
   flushSync(): void
+  /**
+   * Synchronously calls each of the listeners registered for the event named`eventName`, in the order they were registered, passing the supplied arguments
+   * to each.
+   *
+   * @param eventName the name of the event.
+   * @param args the arguments to be passed to the event handlers.
+   * @returns {boolean} `true` if the event had listeners, `false` otherwise.
+   */
+  emit(eventName: string | symbol, ...args: any[]): boolean {
+    return super.emit(eventName, ...args);
+  }
+  /**
+   * Post a message to the Worker with specified data and an optional list of transferable objects.
+   *
+   * @param eventName the name of the event, specifically 'message'.
+   * @param message message data to be sent to the Worker.
+   * @param transferList an optional list of transferable objects to be transferred to the Worker context.
+   * @returns {boolean} true if the event had listeners, false otherwise.
+   */
+  emit(eventName: 'message', message: any, transferList?: Transferable[]): boolean
 }
 
 export = ThreadStream;

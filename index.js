@@ -228,6 +228,9 @@ class ThreadStream extends EventEmitter {
 
     // TODO (fix): Make private?
     this.worker = createWorker(this, opts) // TODO (fix): make private
+    this.on('message', (message, transferList) => {
+      this.worker.postMessage(message, transferList)
+    })
   }
 
   write (data) {
