@@ -14,6 +14,8 @@ test('worker test when packaged into executable using pkg', async (t) => {
   // package the app into several node versions, check config for more info
   const filePath = `${join(__dirname, packageName)}.js`
   const configPath = join(__dirname, 'pkg.config.json')
+  process.env.NODE_OPTIONS ||= ''
+  process.env.NODE_OPTIONS = '--no-warnings'
   const { stderr } = await exec(`npx pkg ${filePath} --config ${configPath}`)
 
   // there should be no error when packaging
