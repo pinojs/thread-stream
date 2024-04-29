@@ -15,7 +15,7 @@
     "fastbench": "^1.0.1",
     "husky": "^9.0.6",
     "pino-elasticsearch": "^8.0.0",
-    "sonic-boom": "^3.0.0",
+    "sonic-boom": "^4.0.1",
     "standard": "^17.0.0",
     "tap": "^16.2.0",
     "ts-node": "^10.8.0",
