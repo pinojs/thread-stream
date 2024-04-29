@@ -22,7 +22,9 @@ function retryUntilTimeout (fn, timeout) {
   })
 }
 
-test('emit warning when the worker gracefully exit without the stream ended', async function (t) {
+const isNode18 = process.version.indexOf('v18') === 0
+
+test('emit warning when the worker gracefully exit without the stream ended', { skip: !isNode18 }, async function (t) {
   const expectedWarning = 'ThreadStream: process exited before destination stream was drained. this may indicate that the destination stream try to write to a another missing stream'
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-next.js')

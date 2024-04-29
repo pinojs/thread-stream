@@ -38,15 +38,11 @@ jobs:
       contents: read
     strategy:
       matrix:
-        node-version: [14, 16, 18, 20]
+        node-version: [18, 20, 22]
         os: [macos-latest, ubuntu-latest, windows-latest]
         exclude:
           - os: windows-latest
-            node-version: 14
-          - os: macos-latest
-            node-version: 14
-          - os: macos-latest
-            node-version: 16
+            node-version: 22
 
     steps:
       - name: Check out repo
