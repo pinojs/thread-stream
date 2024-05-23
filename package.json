@@ -23,7 +23,8 @@
     "why-is-node-running": "^2.2.2"
   },
   "scripts": {
-    "test": "standard && npm run transpile && tap \"test/**/*.test.*js\" && tap --ts test/*.test.*ts",
+    "build": "tsc --noEmit",
+    "test": "standard && npm run build && npm run transpile && tap \"test/**/*.test.*js\" && tap --ts test/*.test.*ts",
     "test:ci": "standard && npm run transpile && npm run test:ci:js && npm run test:ci:ts",
     "test:ci:js": "tap --no-check-coverage --timeout=120 --coverage-report=lcovonly \"test/**/*.test.*js\"",
     "test:ci:ts": "tap --ts --no-check-coverage --coverage-report=lcovonly \"test/**/*.test.*ts\"",

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import workerThreads from 'worker_threads'
+import * as workerThreads from 'worker_threads'
 
 interface ThreadStreamOptions {
   /**
@@ -76,9 +76,8 @@ declare class ThreadStream extends EventEmitter {
    * @param args the arguments to be passed to the event handlers.
    * @returns {boolean} `true` if the event had listeners, `false` otherwise.
    */
-  emit(eventName: string | symbol, ...args: any[]): boolean {
-    return super.emit(eventName, ...args);
-  }
+  emit(eventName: string | symbol, ...args: any[]): boolean;
+
   /**
    * Post a message to the Worker with specified data and an optional list of transferable objects.
    *
