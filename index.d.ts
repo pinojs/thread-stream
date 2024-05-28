@@ -1,3 +1,4 @@
+/// <reference lib="DOM" />
 import { EventEmitter } from 'events'
 import * as workerThreads from 'worker_threads'
 
