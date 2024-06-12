@@ -34,7 +34,8 @@
   },
   "standard": {
     "ignore": [
-      "test/ts/**/*"
+      "test/ts/**/*",
+      "test/syntax-error.mjs"
     ]
   },
   "repository": {
