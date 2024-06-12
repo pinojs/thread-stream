@@ -271,3 +271,15 @@ test('destroy does not error', function (t) {
     t.doesNotThrow(() => stream.end())
   })
 })
+
+test('syntax error', function (t) {
+  t.plan(1)
+
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'syntax-error.mjs')
+  })
+
+  stream.on('error', (err) => {
+    t.equal(err.message, 'Unexpected end of input')
+  })
+})
