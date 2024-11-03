@@ -1,8 +1,8 @@
 'use strict'
 
 const { test } = require('tap')
-const { join } = require('path')
-const { readFile } = require('fs')
+const { join } = require('node:path')
+const { readFile } = require('node:fs')
 const { file } = require('./helper')
 const ThreadStream = require('..')
 

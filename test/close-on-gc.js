@@ -1,6 +1,6 @@
 'use strict'
 
-const { join } = require('path')
+const { join } = require('node:path')
 const ThreadStream = require('..')
 const assert = require('assert')
 

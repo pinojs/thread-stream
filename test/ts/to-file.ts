@@ -1,5 +1,5 @@
-import { type PathLike, type WriteStream, createWriteStream } from 'fs'
-import { once } from 'events'
+import { type PathLike, type WriteStream, createWriteStream } from 'node:fs'
+import { once } from 'node:events'
 
 export default async function run (
   opts: { dest: PathLike },

@@ -1,6 +1,6 @@
 'use strict'
 
-const { Writable } = require('stream')
+const { Writable } = require('node:stream')
 
 async function run (opts) {
   const stream = new Writable({

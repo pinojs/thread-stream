@@ -1,10 +1,10 @@
 'use strict'
 
 const { version } = require('./package.json')
-const { EventEmitter } = require('events')
-const { Worker } = require('worker_threads')
-const { join } = require('path')
-const { pathToFileURL } = require('url')
+const { EventEmitter } = require('node:events')
+const { Worker } = require('node:worker_threads')
+const { join } = require('node:path')
+const { pathToFileURL } = require('node:url')
 const { wait } = require('./lib/wait')
 const {
   WRITE_INDEX,

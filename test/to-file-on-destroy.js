@@ -1,7 +1,7 @@
 'use strict'
 
-const fs = require('fs')
-const { Writable } = require('stream')
+const fs = require('node:fs')
+const { Writable } = require('node:stream')
 
 function run (opts) {
   let data = ''

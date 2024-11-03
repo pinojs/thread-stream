@@ -4,8 +4,8 @@ const bench = require('fastbench')
 const SonicBoom = require('sonic-boom')
 const ThreadStream = require('.')
 const Console = require('console').Console
-const fs = require('fs')
-const { join } = require('path')
+const fs = require('node:fs')
+const { join } = require('node:path')
 
 const core = fs.createWriteStream('/dev/null')
 const fd = fs.openSync('/dev/null', 'w')

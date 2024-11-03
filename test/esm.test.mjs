@@ -1,8 +1,8 @@
 import { test } from 'tap'
-import { readFile } from 'fs'
+import { readFile } from 'node:fs'
 import ThreadStream from '../index.js'
 import { join } from 'desm'
-import { pathToFileURL } from 'url'
+import { pathToFileURL } from 'node:url'
 import { file } from './helper.js'
 
 function basic (text, filename) {

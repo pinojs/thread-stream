@@ -1,7 +1,7 @@
 import { test } from 'tap'
-import { readFile } from 'fs'
+import { readFile } from 'node:fs'
 import ThreadStream from '../index.js'
-import { join } from 'path'
+import { join } from 'node:path'
 import { file } from './helper.js'
 
 

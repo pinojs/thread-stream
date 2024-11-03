@@ -1,7 +1,7 @@
 'use strict'
 
 const { test } = require('tap')
-const { join } = require('path')
+const { join } = require('node:path')
 const ThreadStream = require('..')
 const { version } = require('../package.json')
 require('why-is-node-running')

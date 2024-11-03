@@ -1,9 +1,9 @@
 'use strict'
 
 const { test } = require('tap')
-const { join } = require('path')
-const { once } = require('events')
-const { MessageChannel } = require('worker_threads')
+const { join } = require('node:path')
+const { once } = require('node:events')
+const { MessageChannel } = require('node:worker_threads')
 const ThreadStream = require('..')
 
 test('message events emitted on the stream are posted to the worker', async function (t) {

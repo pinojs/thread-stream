@@ -1,12 +1,12 @@
 'use strict'
 
 const { test } = require('tap')
-const { join } = require('path')
-const { readFile } = require('fs')
+const { join } = require('node:path')
+const { readFile } = require('node:fs')
 const { file } = require('./helper')
 const ThreadStream = require('..')
 const { MessageChannel } = require('worker_threads')
-const { once } = require('events')
+const { once } = require('node:events')
 
 test('base sync=true', function (t) {
   t.plan(15)

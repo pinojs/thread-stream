@@ -1,9 +1,9 @@
 'use strict'
 
 const { test } = require('tap')
-const { join } = require('path')
-const { MessageChannel } = require('worker_threads')
-const { once } = require('events')
+const { join } = require('node:path')
+const { MessageChannel } = require('node:worker_threads')
+const { once } = require('node:events')
 const ThreadStream = require('..')
 
 const isYarnPnp = process.versions.pnp !== undefined

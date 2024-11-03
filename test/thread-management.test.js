@@ -1,11 +1,11 @@
 'use strict'
 
 const { test } = require('tap')
-const { fork } = require('child_process')
-const { join } = require('path')
-const { readFile } = require('fs').promises
+const { fork } = require('node:child_process')
+const { join } = require('node:path')
+const { readFile } = require('node:fs/promises')
 const { file } = require('./helper')
-const { once } = require('events')
+const { once } = require('node:events')
 const ThreadStream = require('..')
 
 test('exits with 0', async function (t) {

@@ -5,7 +5,7 @@
  */
 
 const { test } = require('tap')
-const { join } = require('path')
+const { join } = require('node:path')
 const { file } = require('../helper')
 const ThreadStream = require('../..')
 

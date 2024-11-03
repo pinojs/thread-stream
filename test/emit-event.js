@@ -1,7 +1,7 @@
 'use strict'
 
-const { Writable } = require('stream')
-const parentPort = require('worker_threads').parentPort
+const { Writable } = require('node:stream')
+const parentPort = require('node:worker_threads').parentPort
 
 async function run () {
   return new Writable({

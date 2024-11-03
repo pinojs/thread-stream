@@ -1,6 +1,6 @@
 'use strict'
 
-const { Writable } = require('stream')
+const { Writable } = require('node:stream')
 
 // Nop console.error to avoid printing things out
 console.error = () => {}

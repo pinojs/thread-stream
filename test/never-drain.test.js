@@ -1,6 +1,6 @@
 const { test } = require('tap')
 const ThreadStream = require('../index')
-const { join } = require('path')
+const { join } = require('node:path')
 
 function retryUntilTimeout (fn, timeout) {
   const start = Date.now()

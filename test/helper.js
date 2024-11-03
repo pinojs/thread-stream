@@ -1,8 +1,8 @@
 'use strict'
 
-const { join } = require('path')
-const { tmpdir } = require('os')
-const { unlinkSync } = require('fs')
+const { join } = require('node:path')
+const { tmpdir } = require('node:os')
+const { unlinkSync } = require('node:fs')
 const t = require('tap')
 
 const files = []

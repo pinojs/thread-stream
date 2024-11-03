@@ -1,6 +1,6 @@
 'use strict'
 
-const { PassThrough } = require('stream')
+const { PassThrough } = require('node:stream')
 
 async function run (opts) {
   return new PassThrough({})
