@@ -3,7 +3,7 @@
 const bench = require('fastbench')
 const SonicBoom = require('sonic-boom')
 const ThreadStream = require('.')
-const Console = require('console').Console
+const Console = require('node:console').Console
 const fs = require('node:fs')
 const { join } = require('node:path')
 

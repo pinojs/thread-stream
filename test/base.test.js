@@ -5,7 +5,7 @@ const { join } = require('node:path')
 const { readFile } = require('node:fs')
 const { file } = require('./helper')
 const ThreadStream = require('..')
-const { MessageChannel } = require('worker_threads')
+const { MessageChannel } = require('node:worker_threads')
 const { once } = require('node:events')
 
 test('base sync=true', function (t) {
