@@ -151,3 +151,6 @@ profile-*
 # Generated files
 test/ts/*js
 /.idea/
+
+# ignore tap folder
+.tap
