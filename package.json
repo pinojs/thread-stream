@@ -4,6 +4,13 @@
   "description": "A streaming way to send data to a Node.js Worker Thread",
   "main": "index.js",
   "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "lib/",
+    "LICENSE",
+    "README.md"
+  ],
   "dependencies": {
     "real-require": "^0.2.0"
   },
