@@ -6,7 +6,8 @@
         ],
         "targets": [
             "node20",
-            "node22"
+            "node22",
+            "node24"
         ],
         "outputPath": "test/pkg"
     }
