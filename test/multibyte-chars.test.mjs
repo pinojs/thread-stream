@@ -1,11 +1,11 @@
-import { test } from 'tap'
+import { test } from 'node:test'
+import assert from 'node:assert'
 import { readFile } from 'fs'
 import ThreadStream from '../index.js'
 import { join } from 'desm'
 import { file } from './helper.js'
 
-test('break up utf8 multibyte (sync)', (t) => {
-  t.plan(2)
+test('break up utf8 multibyte (sync)', (t, done) => {
   const longString = '\u03A3'.repeat(16)
 
   const dest = file()
@@ -18,8 +18,9 @@ test('break up utf8 multibyte (sync)', (t) => {
 
   stream.on('finish', () => {
     readFile(dest, 'utf8', (err, data) => {
-      t.error(err)
-      t.equal(data, longString)
+      assert.ifError(err)
+      assert.strictEqual(data, longString)
+      done()
     })
   })
 
@@ -27,8 +28,7 @@ test('break up utf8 multibyte (sync)', (t) => {
   stream.end()
 })
 
-test('break up utf8 multibyte (async)', (t) => {
-  t.plan(2)
+test('break up utf8 multibyte (async)', (t, done) => {
   const longString = '\u03A3'.repeat(16)
 
   const dest = file()
@@ -41,8 +41,9 @@ test('break up utf8 multibyte (async)', (t) => {
 
   stream.on('finish', () => {
     readFile(dest, 'utf8', (err, data) => {
-      t.error(err)
-      t.equal(data, longString)
+      assert.ifError(err)
+      assert.strictEqual(data, longString)
+      done()
     })
   })
 
@@ -50,8 +51,7 @@ test('break up utf8 multibyte (async)', (t) => {
   stream.end()
 })
 
-test('break up utf8 multibyte several times bigger than write buffer', (t) => {
-  t.plan(2)
+test('break up utf8 multibyte several times bigger than write buffer', (t, done) => {
   const longString = '\u03A3'.repeat(32)
 
   const dest = file()
@@ -64,8 +64,9 @@ test('break up utf8 multibyte several times bigger than write buffer', (t) => {
 
   stream.on('finish', () => {
     readFile(dest, 'utf8', (err, data) => {
-      t.error(err)
-      t.equal(data, longString)
+      assert.ifError(err)
+      assert.strictEqual(data, longString)
+      done()
     })
   })
 

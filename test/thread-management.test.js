@@ -1,6 +1,7 @@
 'use strict'
 
-const { test } = require('tap')
+const { test } = require('node:test')
+const assert = require('node:assert')
 const { fork } = require('child_process')
 const { join } = require('path')
 const { readFile } = require('fs').promises
@@ -13,10 +14,10 @@ test('exits with 0', async function (t) {
   const child = fork(join(__dirname, 'create-and-exit.js'), [dest])
 
   const [code] = await once(child, 'exit')
-  t.equal(code, 0)
+  assert.strictEqual(code, 0)
 
   const data = await readFile(dest, 'utf8')
-  t.equal(data, 'hello world\n')
+  assert.strictEqual(data, 'hello world\n')
 })
 
 test('emit error if thread exits', async function (t) {
@@ -30,15 +31,15 @@ test('emit error if thread exits', async function (t) {
   })
 
   let [err] = await once(stream, 'error')
-  t.equal(err.message, 'the worker thread exited')
+  assert.strictEqual(err.message, 'the worker thread exited')
 
   stream.write('noop');
   [err] = await once(stream, 'error')
-  t.equal(err.message, 'the worker has exited')
+  assert.strictEqual(err.message, 'the worker has exited')
 
   stream.write('noop');
   [err] = await once(stream, 'error')
-  t.equal(err.message, 'the worker has exited')
+  assert.strictEqual(err.message, 'the worker has exited')
 })
 
 test('emit error if thread have unhandledRejection', async function (t) {
@@ -52,15 +53,15 @@ test('emit error if thread have unhandledRejection', async function (t) {
   })
 
   let [err] = await once(stream, 'error')
-  t.equal(err.message, 'kaboom')
+  assert.strictEqual(err.message, 'kaboom')
 
   stream.write('noop');
   [err] = await once(stream, 'error')
-  t.equal(err.message, 'the worker has exited')
+  assert.strictEqual(err.message, 'the worker has exited')
 
   stream.write('noop');
   [err] = await once(stream, 'error')
-  t.equal(err.message, 'the worker has exited')
+  assert.strictEqual(err.message, 'the worker has exited')
 })
 
 test('emit error if worker stream emit error', async function (t) {
@@ -74,15 +75,15 @@ test('emit error if worker stream emit error', async function (t) {
   })
 
   let [err] = await once(stream, 'error')
-  t.equal(err.message, 'kaboom')
+  assert.strictEqual(err.message, 'kaboom')
 
   stream.write('noop');
   [err] = await once(stream, 'error')
-  t.equal(err.message, 'the worker has exited')
+  assert.strictEqual(err.message, 'the worker has exited')
 
   stream.write('noop');
   [err] = await once(stream, 'error')
-  t.equal(err.message, 'the worker has exited')
+  assert.strictEqual(err.message, 'the worker has exited')
 })
 
 test('emit error if thread have uncaughtException', async function (t) {
@@ -96,15 +97,15 @@ test('emit error if thread have uncaughtException', async function (t) {
   })
 
   let [err] = await once(stream, 'error')
-  t.equal(err.message, 'kaboom')
+  assert.strictEqual(err.message, 'kaboom')
 
   stream.write('noop');
   [err] = await once(stream, 'error')
-  t.equal(err.message, 'the worker has exited')
+  assert.strictEqual(err.message, 'the worker has exited')
 
   stream.write('noop');
   [err] = await once(stream, 'error')
-  t.equal(err.message, 'the worker has exited')
+  assert.strictEqual(err.message, 'the worker has exited')
 })
 
 test('close the work if out of scope on gc', { skip: !global.WeakRef }, async function (t) {
@@ -114,8 +115,8 @@ test('close the work if out of scope on gc', { skip: !global.WeakRef }, async fu
   })
 
   const [code] = await once(child, 'exit')
-  t.equal(code, 0)
+  assert.strictEqual(code, 0)
 
   const data = await readFile(dest, 'utf8')
-  t.equal(data, 'hello world\n')
+  assert.strictEqual(data, 'hello world\n')
 })

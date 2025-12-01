@@ -4,39 +4,34 @@
   "description": "A streaming way to send data to a Node.js Worker Thread",
   "main": "index.js",
   "types": "index.d.ts",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "real-require": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/tap": "^15.0.0",
     "@yao-pkg/pkg": "^6.0.0",
+    "borp": "^0.21.0",
     "desm": "^1.3.0",
+    "eslint": "^9.39.1",
     "fastbench": "^1.0.1",
     "husky": "^9.0.6",
+    "neostandard": "^0.12.2",
     "pino-elasticsearch": "^8.0.0",
     "sonic-boom": "^4.0.1",
-    "standard": "^17.0.0",
-    "tap": "^16.2.0",
     "ts-node": "^10.8.0",
-    "typescript": "~5.7.3",
-    "why-is-node-running": "^2.2.2"
+    "typescript": "~5.7.3"
   },
   "scripts": {
     "build": "tsc --noEmit",
-    "test": "standard && npm run build && npm run transpile && tap \"test/**/*.test.*js\" && tap --ts test/*.test.*ts",
-    "test:ci": "standard && npm run transpile && npm run test:ci:js && npm run test:ci:ts",
-    "test:ci:js": "tap --no-check-coverage --timeout=120 --coverage-report=lcovonly \"test/**/*.test.*js\"",
-    "test:ci:ts": "tap --ts --no-check-coverage --coverage-report=lcovonly \"test/**/*.test.*ts\"",
-    "test:yarn": "npm run transpile && tap \"test/**/*.test.js\" --no-check-coverage",
+    "lint": "eslint",
+    "test": "npm run lint && npm run build && npm run transpile && borp --pattern 'test/*.test.{js,mjs}'",
+    "test:ci": "npm run lint && npm run transpile && borp --pattern 'test/*.test.{js,mjs}'",
+    "test:yarn": "npm run transpile && borp --pattern 'test/*.test.js'",
     "transpile": "sh ./test/ts/transpile.sh",
     "prepare": "husky install"
-  },
-  "standard": {
-    "ignore": [
-      "test/ts/**/*",
-      "test/syntax-error.mjs"
-    ]
   },
   "repository": {
     "type": "git",

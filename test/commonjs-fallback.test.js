@@ -1,6 +1,7 @@
 'use strict'
 
-const { test } = require('tap')
+const { test } = require('node:test')
+const assert = require('node:assert')
 const { join } = require('path')
 const { MessageChannel } = require('worker_threads')
 const { once } = require('events')
@@ -8,11 +9,9 @@ const ThreadStream = require('..')
 
 const isYarnPnp = process.versions.pnp !== undefined
 
-test('yarn module resolution', { skip: !isYarnPnp }, t => {
-  t.plan(6)
-
+test('yarn module resolution', { skip: !isYarnPnp }, (t, done) => {
   const modulePath = require.resolve('pino-elasticsearch')
-  t.match(modulePath, /.*\.zip.*/)
+  assert.match(modulePath, /.*\.zip.*/)
 
   const stream = new ThreadStream({
     filename: modulePath,
@@ -20,20 +19,18 @@ test('yarn module resolution', { skip: !isYarnPnp }, t => {
     sync: true
   })
 
-  t.same(stream.writableErrored, null)
+  assert.deepStrictEqual(stream.writableErrored, null)
   stream.on('error', (err) => {
-    t.same(stream.writableErrored, err)
-    t.pass('error emitted')
+    assert.deepStrictEqual(stream.writableErrored, err)
   })
 
-  t.ok(stream.write('hello world\n'))
-  t.ok(stream.writable)
+  assert.ok(stream.write('hello world\n'))
+  assert.ok(stream.writable)
   stream.end()
+  done()
 })
 
 test('yarn module resolution for directories with special characters', { skip: !isYarnPnp }, async t => {
-  t.plan(3)
-
   const { port1, port2 } = new MessageChannel()
   const stream = new ThreadStream({
     filename: join(__dirname, 'dir with spaces', 'test-package.zip', 'worker.js'),
@@ -43,21 +40,19 @@ test('yarn module resolution for directories with special characters', { skip: !
     },
     sync: false
   })
-  t.teardown(() => {
+  t.after(() => {
     stream.end()
   })
 
-  t.ok(stream.write('hello world\n'))
-  t.ok(stream.write('something else\n'))
+  assert.ok(stream.write('hello world\n'))
+  assert.ok(stream.write('something else\n'))
 
   const [strings] = await once(port2, 'message')
 
-  t.equal(strings, 'hello world\nsomething else\n')
+  assert.strictEqual(strings, 'hello world\nsomething else\n')
 })
 
 test('yarn module resolution for typescript commonjs modules', { skip: !isYarnPnp }, async t => {
-  t.plan(3)
-
   const { port1, port2 } = new MessageChannel()
   const stream = new ThreadStream({
     filename: join(__dirname, 'ts-commonjs-default-export.zip', 'worker.js'),
@@ -67,14 +62,14 @@ test('yarn module resolution for typescript commonjs modules', { skip: !isYarnPn
     },
     sync: false
   })
-  t.teardown(() => {
+  t.after(() => {
     stream.end()
   })
 
-  t.ok(stream.write('hello world\n'))
-  t.ok(stream.write('something else\n'))
+  assert.ok(stream.write('hello world\n'))
+  assert.ok(stream.write('something else\n'))
 
   const [strings] = await once(port2, 'message')
 
-  t.equal(strings, 'hello world\nsomething else\n')
+  assert.strictEqual(strings, 'hello world\nsomething else\n')
 })

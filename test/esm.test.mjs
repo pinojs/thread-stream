@@ -1,4 +1,5 @@
-import { test } from 'tap'
+import { test } from 'node:test'
+import assert from 'node:assert'
 import { readFile } from 'fs'
 import ThreadStream from '../index.js'
 import { join } from 'desm'
@@ -6,9 +7,7 @@ import { pathToFileURL } from 'url'
 import { file } from './helper.js'
 
 function basic (text, filename) {
-  test(text, function (t) {
-    t.plan(5)
-
+  test(text, function (t, done) {
     const dest = file()
     const stream = new ThreadStream({
       filename,
@@ -18,17 +17,17 @@ function basic (text, filename) {
 
     stream.on('finish', () => {
       readFile(dest, 'utf8', (err, data) => {
-        t.error(err)
-        t.equal(data, 'hello world\nsomething else\n')
+        assert.ifError(err)
+        assert.strictEqual(data, 'hello world\nsomething else\n')
       })
     })
 
     stream.on('close', () => {
-      t.pass('close emitted')
+      done()
     })
 
-    t.ok(stream.write('hello world\n'))
-    t.ok(stream.write('something else\n'))
+    assert.ok(stream.write('hello world\n'))
+    assert.ok(stream.write('something else\n'))
 
     stream.end()
   })
