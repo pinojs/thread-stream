@@ -1,6 +1,6 @@
 'use strict'
 
-const { test } = require('tap')
+const { test } = require('node:test')
 const { join } = require('path')
 const ThreadStream = require('..')
 const { file } = require('./helper')
@@ -13,7 +13,7 @@ for (let i = 0; i < 10; i++) {
   str += 'hello'
 }
 
-test('base', function (t) {
+test('base', function (t, done) {
   const dest = file()
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-file.js'),
@@ -33,6 +33,6 @@ test('base', function (t) {
   }
   benchThreadStream()
   stream.on('finish', function () {
-    t.end()
+    done()
   })
 })
