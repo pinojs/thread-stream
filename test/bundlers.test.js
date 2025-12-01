@@ -1,13 +1,12 @@
 'use strict'
 
-const { test } = require('tap')
+const { test } = require('node:test')
+const assert = require('node:assert')
 const { join } = require('path')
 const { file } = require('./helper')
 const ThreadStream = require('..')
 
-test('bundlers support with .js file', function (t) {
-  t.plan(1)
-
+test('bundlers support with .js file', function (t, done) {
   globalThis.__bundlerPathsOverrides = {
     'thread-stream-worker': join(__dirname, 'custom-worker.js')
   }
@@ -26,15 +25,14 @@ test('bundlers support with .js file', function (t) {
 
   stream.worker.removeAllListeners('message')
   stream.worker.once('message', message => {
-    t.equal(message.code, 'CUSTOM-WORKER-CALLED')
+    assert.strictEqual(message.code, 'CUSTOM-WORKER-CALLED')
+    done()
   })
 
   stream.end()
 })
 
-test('bundlers support with .mjs file', function (t) {
-  t.plan(1)
-
+test('bundlers support with .mjs file', function (t, done) {
   globalThis.__bundlerPathsOverrides = {
     'thread-stream-worker': join(__dirname, 'custom-worker.js')
   }
@@ -53,7 +51,8 @@ test('bundlers support with .mjs file', function (t) {
 
   stream.worker.removeAllListeners('message')
   stream.worker.once('message', message => {
-    t.equal(message.code, 'CUSTOM-WORKER-CALLED')
+    assert.strictEqual(message.code, 'CUSTOM-WORKER-CALLED')
+    done()
   })
 
   stream.end()
