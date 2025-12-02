@@ -26,8 +26,7 @@ test('emit error if thread exits', async function (t) {
     sync: true
   })
 
-  const closed = once(stream, 'close')
-  closed.catch(() => {})
+  const closed = once(stream, 'close').catch(() => {})
 
   stream.on('ready', () => {
     stream.write('hello world\n')
@@ -44,7 +43,7 @@ test('emit error if thread exits', async function (t) {
   [err] = await once(stream, 'error')
   assert.strictEqual(err.message, 'the worker has exited')
 
-  await closed.catch(() => {})
+  await closed
 })
 
 test('emit error if thread have unhandledRejection', async function (t) {
@@ -53,8 +52,7 @@ test('emit error if thread have unhandledRejection', async function (t) {
     sync: true
   })
 
-  const closed = once(stream, 'close')
-  closed.catch(() => {})
+  const closed = once(stream, 'close').catch(() => {})
 
   stream.on('ready', () => {
     stream.write('hello world\n')
@@ -71,7 +69,7 @@ test('emit error if thread have unhandledRejection', async function (t) {
   [err] = await once(stream, 'error')
   assert.strictEqual(err.message, 'the worker has exited')
 
-  await closed.catch(() => {})
+  await closed
 })
 
 test('emit error if worker stream emit error', async function (t) {
@@ -80,8 +78,7 @@ test('emit error if worker stream emit error', async function (t) {
     sync: true
   })
 
-  const closed = once(stream, 'close')
-  closed.catch(() => {})
+  const closed = once(stream, 'close').catch(() => {})
 
   stream.on('ready', () => {
     stream.write('hello world\n')
@@ -98,7 +95,7 @@ test('emit error if worker stream emit error', async function (t) {
   [err] = await once(stream, 'error')
   assert.strictEqual(err.message, 'the worker has exited')
 
-  await closed.catch(() => {})
+  await closed
 })
 
 test('emit error if thread have uncaughtException', async function (t) {
@@ -107,8 +104,7 @@ test('emit error if thread have uncaughtException', async function (t) {
     sync: true
   })
 
-  const closed = once(stream, 'close')
-  closed.catch(() => {})
+  const closed = once(stream, 'close').catch(() => {})
 
   stream.on('ready', () => {
     stream.write('hello world\n')
@@ -125,7 +121,7 @@ test('emit error if thread have uncaughtException', async function (t) {
   [err] = await once(stream, 'error')
   assert.strictEqual(err.message, 'the worker has exited')
 
-  await closed.catch(() => {})
+  await closed
 })
 
 test('close the work if out of scope on gc', { skip: !global.WeakRef }, async function (t) {
