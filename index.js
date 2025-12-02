@@ -122,6 +122,7 @@ function nextFlush (stream) {
 
         Atomics.store(stream[kImpl].state, READ_INDEX, 0)
         Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+        Atomics.notify(stream[kImpl].state, READ_INDEX)
 
         // Find a toWrite length that fits the buffer
         // it must exists as the buffer is at least 4 bytes length
@@ -143,6 +144,7 @@ function nextFlush (stream) {
     stream.flush(() => {
       Atomics.store(stream[kImpl].state, READ_INDEX, 0)
       Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+      Atomics.notify(stream[kImpl].state, READ_INDEX)
       nextFlush(stream)
     })
   } else {
@@ -468,6 +470,7 @@ function writeSync (stream) {
       flushSync(stream)
       Atomics.store(stream[kImpl].state, READ_INDEX, 0)
       Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+      Atomics.notify(stream[kImpl].state, READ_INDEX)
       continue
     } else if (leftover < 0) {
       // stream should never happen
@@ -485,6 +488,7 @@ function writeSync (stream) {
       flushSync(stream)
       Atomics.store(stream[kImpl].state, READ_INDEX, 0)
       Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+      Atomics.notify(stream[kImpl].state, READ_INDEX)
 
       // Find a toWrite length that fits the buffer
       // it must exists as the buffer is at least 4 bytes length
