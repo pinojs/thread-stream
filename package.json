@@ -13,7 +13,7 @@
   "devDependencies": {
     "@types/node": "^25.0.2",
     "@yao-pkg/pkg": "^6.0.0",
-    "borp": "^0.21.0",
+    "borp": "^1.0.0",
     "desm": "^1.3.0",
     "eslint": "^9.39.1",
     "fastbench": "^1.0.1",
@@ -26,9 +26,9 @@
   "scripts": {
     "build": "tsc --noEmit",
     "lint": "eslint",
-    "test": "npm run lint && npm run build && npm run transpile && borp --pattern 'test/*.test.{js,mjs}'",
-    "test:ci": "npm run lint && npm run transpile && borp --pattern 'test/*.test.{js,mjs}'",
-    "test:yarn": "npm run transpile && borp --pattern 'test/*.test.js'",
+    "test": "npm run lint && npm run build && npm run transpile && borp --pattern \"test/*.test.{js,mjs}\"",
+    "test:ci": "npm run lint && npm run transpile && borp --pattern \"test/*.test.{js,mjs}\"",
+    "test:yarn": "npm run transpile && borp --pattern \"test/*.test.js\"",
     "transpile": "sh ./test/ts/transpile.sh"
   },
   "repository": {
