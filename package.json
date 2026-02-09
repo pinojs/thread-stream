@@ -26,9 +26,9 @@
   "scripts": {
     "build": "tsc --noEmit",
     "lint": "eslint",
-    "test": "npm run lint && npm run build && npm run transpile && borp --pattern 'test/*.test.{js,mjs}'",
-    "test:ci": "npm run lint && npm run transpile && borp --pattern 'test/*.test.{js,mjs}'",
-    "test:yarn": "npm run transpile && borp --pattern 'test/*.test.js'",
+    "test": "npm run lint && npm run build && npm run transpile && borp --pattern \"test/*.test.{js,mjs}\"",
+    "test:ci": "npm run lint && npm run transpile && borp --pattern \"test/*.test.{js,mjs}\"",
+    "test:yarn": "npm run transpile && borp --pattern \"test/*.test.js\"",
     "transpile": "sh ./test/ts/transpile.sh"
   },
   "repository": {
