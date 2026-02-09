@@ -27,6 +27,9 @@ test('emit error if thread exits', async function (t) {
   })
 
   const closed = once(stream, 'close').catch(() => {})
+  // Keep a persistent error listener to avoid unhandled late error events
+  // reported as asynchronous activity by stricter test runners.
+  stream.on('error', () => {})
 
   stream.on('ready', () => {
     stream.write('hello world\n')
@@ -53,6 +56,9 @@ test('emit error if thread have unhandledRejection', async function (t) {
   })
 
   const closed = once(stream, 'close').catch(() => {})
+  // Keep a persistent error listener to avoid unhandled late error events
+  // reported as asynchronous activity by stricter test runners.
+  stream.on('error', () => {})
 
   stream.on('ready', () => {
     stream.write('hello world\n')
@@ -79,6 +85,9 @@ test('emit error if worker stream emit error', async function (t) {
   })
 
   const closed = once(stream, 'close').catch(() => {})
+  // Keep a persistent error listener to avoid unhandled late error events
+  // reported as asynchronous activity by stricter test runners.
+  stream.on('error', () => {})
 
   stream.on('ready', () => {
     stream.write('hello world\n')
@@ -105,6 +114,9 @@ test('emit error if thread have uncaughtException', async function (t) {
   })
 
   const closed = once(stream, 'close').catch(() => {})
+  // Keep a persistent error listener to avoid unhandled late error events
+  // reported as asynchronous activity by stricter test runners.
+  stream.on('error', () => {})
 
   stream.on('ready', () => {
     stream.write('hello world\n')
