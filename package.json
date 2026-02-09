@@ -15,7 +15,7 @@
     "@yao-pkg/pkg": "^6.0.0",
     "borp": "^1.0.0",
     "desm": "^1.3.0",
-    "eslint": "^9.39.1",
+    "eslint": "^10.0.0",
     "fastbench": "^1.0.1",
     "neostandard": "^0.12.2",
     "pino-elasticsearch": "^8.0.0",
