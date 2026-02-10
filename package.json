@@ -21,7 +21,7 @@
     "pino-elasticsearch": "^8.0.0",
     "sonic-boom": "^4.0.1",
     "ts-node": "^10.8.0",
-    "typescript": "~5.7.3"
+    "typescript": "~5.9.3"
   },
   "scripts": {
     "build": "tsc --noEmit",
