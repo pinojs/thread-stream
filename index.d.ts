@@ -60,6 +60,13 @@ declare class ThreadStream extends EventEmitter {
    */
   end(): void
   /**
+   * Flush the stream asynchronously.
+   *
+   * The callback is invoked once data has been consumed by the worker and the
+   * worker destination has acknowledged the flush.
+   */
+  flush(cb?: (err?: Error) => void): void
+  /**
    * Flush the stream synchronously.
    * This method should be called in the shutdown phase to make sure that all data has been flushed.
    * 
