@@ -409,6 +409,25 @@ function requestWorkerFlush (stream, cb) {
     return
   }
 
+  if (!stream[kImpl].ready) {
+    const onReady = () => {
+      cleanup()
+      requestWorkerFlush(stream, cb)
+    }
+    const onClose = () => {
+      cleanup()
+      process.nextTick(cb, new Error('the worker has exited'))
+    }
+    const cleanup = () => {
+      stream.off('ready', onReady)
+      stream.off('close', onClose)
+    }
+
+    stream.once('ready', onReady)
+    stream.once('close', onClose)
+    return
+  }
+
   const id = ++stream[kImpl].nextFlushId
   stream[kImpl].flushCallbacks.set(id, cb)
 
