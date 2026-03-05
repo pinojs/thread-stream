@@ -18,6 +18,8 @@ const kImpl = Symbol('kImpl')
 // V8 limit for string size
 const MAX_STRING = buffer.constants.MAX_STRING_LENGTH
 
+function noop () {}
+
 class FakeWeakRef {
   constructor (value) {
     this._value = value
@@ -115,8 +117,8 @@ function nextFlush (stream) {
       write(stream, toWrite, nextFlush.bind(null, stream))
     } else {
       // multi-byte utf-8
-      stream.flush(() => {
-        // err is already handled in flush()
+      waitForRead(stream, () => {
+        // err is already handled in waitForRead()
         if (stream.destroyed) {
           return
         }
@@ -142,7 +144,7 @@ function nextFlush (stream) {
       // we had a flushSync in the meanwhile
       return
     }
-    stream.flush(() => {
+    waitForRead(stream, () => {
       Atomics.store(stream[kImpl].state, READ_INDEX, 0)
       Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
       Atomics.notify(stream[kImpl].state, READ_INDEX)
@@ -169,7 +171,7 @@ function onWorkerMessage (msg) {
       // proper one.
       this.stream = new WeakRef(stream)
 
-      stream.flush(() => {
+      waitForRead(stream, () => {
         stream[kImpl].ready = true
         stream.emit('ready')
       })
@@ -184,6 +186,19 @@ function onWorkerMessage (msg) {
         stream.emit(msg.name, msg.args)
       }
       break
+    case 'FLUSHED': {
+      if (msg.context !== 'thread-stream') {
+        destroy(stream, new Error('this should not happen: ' + msg.code))
+        break
+      }
+
+      const cb = stream[kImpl].flushCallbacks.get(msg.id)
+      if (cb) {
+        stream[kImpl].flushCallbacks.delete(msg.id)
+        process.nextTick(cb)
+      }
+      break
+    }
     case 'WARNING':
       process.emitWarning(msg.err)
       break
@@ -228,6 +243,8 @@ class ThreadStream extends EventEmitter {
     this[kImpl].errored = null
     this[kImpl].closed = false
     this[kImpl].buf = ''
+    this[kImpl].flushCallbacks = new Map()
+    this[kImpl].nextFlushId = 0
 
     // TODO (fix): Make private?
     this.worker = createWorker(this, opts) // TODO (fix): make private
@@ -288,28 +305,15 @@ class ThreadStream extends EventEmitter {
   }
 
   flush (cb) {
-    if (this[kImpl].destroyed) {
-      if (typeof cb === 'function') {
-        process.nextTick(cb, new Error('the worker has exited'))
-      }
-      return
-    }
+    cb = typeof cb === 'function' ? cb : noop
 
-    // TODO write all .buf
-    const writeIndex = Atomics.load(this[kImpl].state, WRITE_INDEX)
-    // process._rawDebug(`(flush) readIndex (${Atomics.load(this.state, READ_INDEX)}) writeIndex (${Atomics.load(this.state, WRITE_INDEX)})`)
-    wait(this[kImpl].state, READ_INDEX, writeIndex, Infinity, (err, res) => {
+    flushBuffer(this, (err) => {
       if (err) {
-        destroy(this, err)
         process.nextTick(cb, err)
         return
       }
-      if (res === 'not-equal') {
-        // TODO handle deadlock
-        this.flush(cb)
-        return
-      }
-      process.nextTick(cb)
+
+      requestWorkerFlush(this, cb)
     })
   }
 
@@ -367,6 +371,93 @@ class ThreadStream extends EventEmitter {
   }
 }
 
+function flushBuffer (stream, cb) {
+  if (stream[kImpl].destroyed) {
+    process.nextTick(cb, new Error('the worker has exited'))
+    return
+  }
+
+  if (!stream[kImpl].sync && (stream[kImpl].flushing || stream[kImpl].buf.length > 0)) {
+    setImmediate(flushBuffer, stream, cb)
+    return
+  }
+
+  waitForRead(stream, cb)
+}
+
+function waitForRead (stream, cb) {
+  const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
+  wait(stream[kImpl].state, READ_INDEX, writeIndex, Infinity, (err, res) => {
+    if (err) {
+      destroy(stream, err)
+      cb(err)
+      return
+    }
+
+    if (res !== 'ok') {
+      waitForRead(stream, cb)
+      return
+    }
+
+    cb()
+  })
+}
+
+function requestWorkerFlush (stream, cb) {
+  if (stream[kImpl].destroyed) {
+    process.nextTick(cb, new Error('the worker has exited'))
+    return
+  }
+
+  if (!stream[kImpl].ready) {
+    const onReady = () => {
+      cleanup()
+      requestWorkerFlush(stream, cb)
+    }
+    const onClose = () => {
+      cleanup()
+      process.nextTick(cb, new Error('the worker has exited'))
+    }
+    const cleanup = () => {
+      stream.off('ready', onReady)
+      stream.off('close', onClose)
+    }
+
+    stream.once('ready', onReady)
+    stream.once('close', onClose)
+    return
+  }
+
+  const id = ++stream[kImpl].nextFlushId
+  stream[kImpl].flushCallbacks.set(id, cb)
+
+  try {
+    stream.worker.postMessage({
+      code: 'FLUSH',
+      context: 'thread-stream',
+      id
+    })
+  } catch (err) {
+    stream[kImpl].flushCallbacks.delete(id)
+    destroy(stream, err)
+    process.nextTick(cb, err)
+  }
+}
+
+function failPendingFlushCallbacks (stream, err) {
+  const callbacks = stream[kImpl].flushCallbacks
+  if (callbacks.size === 0) {
+    return
+  }
+
+  const flushErr = err || new Error('the worker has exited')
+
+  for (const cb of callbacks.values()) {
+    process.nextTick(cb, flushErr)
+  }
+  callbacks.clear()
+}
+
 function error (stream, err) {
   setImmediate(() => {
     stream.emit('error', err)
@@ -378,6 +469,7 @@ function destroy (stream, err) {
     return
   }
   stream[kImpl].destroyed = true
+  failPendingFlushCallbacks(stream, err)
 
   if (err) {
     stream[kImpl].errored = err

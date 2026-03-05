@@ -39,6 +39,8 @@ stream.flush(function () {
 })
 ```
 
+`flush(cb)` waits for the worker destination flush when supported (`flush`, `flushSync`, or pending `drain`).
+
 In `worker.js`:
 
 ```js
