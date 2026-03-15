@@ -257,3 +257,14 @@ test('syntax error', function (t, done) {
     done()
   })
 })
+
+test('runtime error in worker module is not hidden by require retry', function (t, done) {
+  const stream = new ThreadStream({
+    filename: join(__dirname, 'reference-error.js')
+  })
+
+  stream.on('error', (err) => {
+    assert.ok(err.message.includes('undeclaredVariable'))
+    done()
+  })
+})
