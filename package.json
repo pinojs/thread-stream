@@ -8,7 +8,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "real-require": "^0.2.0"
+    "real-require": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.0.2",
