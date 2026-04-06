@@ -19,7 +19,7 @@
     "fastbench": "^1.0.1",
     "neostandard": "^0.13.0",
     "pino-elasticsearch": "^8.0.0",
-    "sonic-boom": "^4.0.1",
+    "sonic-boom": "^5.0.0",
     "ts-node": "^10.8.0",
     "typescript": "~5.7.3"
   },
