@@ -2,7 +2,8 @@
     "pkg": {
         "assets": [
             "../custom-worker.js",
-            "../to-file.js"
+            "../to-file.js",
+            "../to-file-worker.js"
         ],
         "targets": [
             "node20",
