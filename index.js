@@ -3,7 +3,6 @@
 const { version } = require('./package.json')
 const { EventEmitter } = require('events')
 const { Worker } = require('worker_threads')
-const { join } = require('path')
 const { pathToFileURL } = require('url')
 const { wait } = require('./lib/wait')
 const {
@@ -12,6 +11,7 @@ const {
 } = require('./lib/indexes')
 const buffer = require('buffer')
 const assert = require('assert')
+const { getWorkerPath } = require('./lib/workerLoader')
 
 const kImpl = Symbol('kImpl')
 
@@ -52,7 +52,7 @@ function createWorker (stream, opts) {
   const { filename, workerData } = opts
 
   const bundlerOverrides = '__bundlerPathsOverrides' in globalThis ? globalThis.__bundlerPathsOverrides : {}
-  const toExecute = bundlerOverrides['thread-stream-worker'] || join(__dirname, 'lib', 'worker.js')
+  const toExecute = bundlerOverrides['thread-stream-worker'] || getWorkerPath()
 
   const worker = new Worker(toExecute, {
     ...opts.workerOpts,
