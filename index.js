@@ -165,7 +165,7 @@ function onWorkerMessage (msg) {
 
   // Node.js watch mode may send internal worker messages that do not
   // participate in thread-stream's worker protocol.
-  if (msg?.code === undefined) {
+  if (msg?.code == null) {
     return
   }
 
