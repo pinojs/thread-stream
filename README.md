@@ -89,7 +89,8 @@ This module works with `yarn` in PnP (plug'n play) mode too!
 ### Emit events
 
 You can emit events on the ThreadStream from your worker using [`worker.parentPort.postMessage()`](https://nodejs.org/api/worker_threads.html#workerparentport).
-The message (JSON object) must have the following data structure:
+Messages that do not carry a thread-stream protocol `code` are ignored.
+For custom events, the message (JSON object) must have the following data structure:
 
 ```js
 parentPort.postMessage({
