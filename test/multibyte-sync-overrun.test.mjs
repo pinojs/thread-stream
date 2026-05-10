@@ -14,13 +14,13 @@ test('write heavily interleaved multibyte and ascii payloads hitting boundaries'
     sync: false
   })
 
-  let expected = ""
+  let expected = ''
 
   // write 1000 identical items.
-  for(let i=0; i<1000; i++) {
-     const str = '{"idx":' + i + ',"alert":"🚨"}\n';
-     expected += str;
-     stream.write(str);
+  for (let i = 0; i < 1000; i++) {
+    const str = '{"idx":' + i + ',"alert":"🚨"}\n'
+    expected += str
+    stream.write(str)
   }
 
   stream.on('finish', () => {
