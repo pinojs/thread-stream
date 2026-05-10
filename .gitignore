@@ -151,3 +151,7 @@ profile-*
 # Generated files
 test/ts/*js
 /.idea/
+
+# AI
+.pi
+AGENTS.md
