@@ -8,7 +8,8 @@ const { pathToFileURL } = require('url')
 const { wait } = require('./lib/wait')
 const {
   WRITE_INDEX,
-  READ_INDEX
+  READ_INDEX,
+  SEQ_INDEX
 } = require('./lib/indexes')
 const buffer = require('buffer')
 const assert = require('assert')
@@ -54,6 +55,19 @@ function takeUtf8Bytes (value, maxBytes) {
     value: value.slice(0, index),
     remaining: value.slice(index)
   }
+}
+
+function signalUpdate (stream) {
+  Atomics.add(stream[kImpl].state, SEQ_INDEX, 1)
+  Atomics.notify(stream[kImpl].state, SEQ_INDEX)
+}
+
+function resetIndexes (stream) {
+  Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+  Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+  signalUpdate(stream)
+  Atomics.notify(stream[kImpl].state, READ_INDEX)
+  Atomics.notify(stream[kImpl].state, WRITE_INDEX)
 }
 
 class FakeWeakRef {
@@ -145,10 +159,9 @@ function nextFlush (stream) {
       return
     }
 
-    let toWrite = stream[kImpl].buf.slice(0, leftover)
-    const toWriteBytes = Buffer.byteLength(toWrite)
-    if (toWriteBytes <= leftover) {
-      stream[kImpl].buf = stream[kImpl].buf.slice(toWrite.length)
+    const { bytes: toWriteBytes, value: toWrite, remaining } = takeUtf8Bytes(stream[kImpl].buf, leftover)
+    if (toWriteBytes !== 0) {
+      stream[kImpl].buf = remaining
       // process._rawDebug('writing ' + toWrite.length)
       write(stream, toWrite, nextFlush.bind(null, stream))
     } else {
@@ -159,15 +172,8 @@ function nextFlush (stream) {
           return
         }
 
-        Atomics.store(stream[kImpl].state, READ_INDEX, 0)
-        Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
-        Atomics.notify(stream[kImpl].state, READ_INDEX)
-        Atomics.notify(stream[kImpl].state, WRITE_INDEX)
-
-        const chunk = takeUtf8Bytes(stream[kImpl].buf, stream[kImpl].data.length)
-        stream[kImpl].buf = chunk.remaining
-        toWrite = chunk.value
-        write(stream, toWrite, nextFlush.bind(null, stream))
+        resetIndexes(stream)
+        nextFlush(stream)
       })
     }
   } else if (leftover === 0) {
@@ -176,10 +182,7 @@ function nextFlush (stream) {
       return
     }
     waitForRead(stream, () => {
-      Atomics.store(stream[kImpl].state, READ_INDEX, 0)
-      Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
-      Atomics.notify(stream[kImpl].state, READ_INDEX)
-      Atomics.notify(stream[kImpl].state, WRITE_INDEX)
+      resetIndexes(stream)
       nextFlush(stream)
     })
   } else {
@@ -535,6 +538,7 @@ function write (stream, data, cb) {
   const length = Buffer.byteLength(data)
   stream[kImpl].data.write(data, current)
   Atomics.store(stream[kImpl].state, WRITE_INDEX, current + length)
+  signalUpdate(stream)
   Atomics.notify(stream[kImpl].state, WRITE_INDEX)
   cb()
   return true
@@ -553,6 +557,7 @@ function end (stream) {
 
     // process._rawDebug('writing index')
     Atomics.store(stream[kImpl].state, WRITE_INDEX, -1)
+    signalUpdate(stream)
     // process._rawDebug(`(end) readIndex (${Atomics.load(stream.state, READ_INDEX)}) writeIndex (${Atomics.load(stream.state, WRITE_INDEX)})`)
     Atomics.notify(stream[kImpl].state, WRITE_INDEX)
 
@@ -599,35 +604,23 @@ function writeSync (stream) {
     const leftover = stream[kImpl].data.length - writeIndex
     if (leftover === 0) {
       flushSync(stream)
-      Atomics.store(stream[kImpl].state, READ_INDEX, 0)
-      Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
-      Atomics.notify(stream[kImpl].state, READ_INDEX)
-      Atomics.notify(stream[kImpl].state, WRITE_INDEX)
+      resetIndexes(stream)
       continue
     } else if (leftover < 0) {
       // stream should never happen
       throw new Error('overwritten')
     }
 
-    let toWrite = stream[kImpl].buf.slice(0, leftover)
-    const toWriteBytes = Buffer.byteLength(toWrite)
-    if (toWriteBytes <= leftover) {
-      stream[kImpl].buf = stream[kImpl].buf.slice(toWrite.length)
-      // process._rawDebug('writing ' + toWrite.length)
-      write(stream, toWrite, cb)
+    const { bytes: toWriteBytes, value: toWrite, remaining } = takeUtf8Bytes(stream[kImpl].buf, leftover)
+    if (toWriteBytes === 0) {
+      // multi-byte utf-8
+      flushSync(stream)
+      resetIndexes(stream)
       continue
     }
 
-    // multi-byte utf-8
-    flushSync(stream)
-    Atomics.store(stream[kImpl].state, READ_INDEX, 0)
-    Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
-    Atomics.notify(stream[kImpl].state, READ_INDEX)
-    Atomics.notify(stream[kImpl].state, WRITE_INDEX)
-
-    const chunk = takeUtf8Bytes(stream[kImpl].buf, stream[kImpl].data.length)
-    stream[kImpl].buf = chunk.remaining
-    toWrite = chunk.value
+    stream[kImpl].buf = remaining
+    // process._rawDebug('writing ' + toWrite.length)
     write(stream, toWrite, cb)
   }
 }
