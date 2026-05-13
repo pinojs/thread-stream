@@ -20,6 +20,42 @@ const MAX_STRING = buffer.constants.MAX_STRING_LENGTH
 
 function noop () {}
 
+function takeUtf8Bytes (value, maxBytes) {
+  let bytes = 0
+  let index = 0
+
+  while (index < value.length) {
+    const code = value.charCodeAt(index)
+    let byteLength = 3
+    let size = 1
+
+    if (code <= 0x7F) {
+      byteLength = 1
+    } else if (code <= 0x7FF) {
+      byteLength = 2
+    } else if (code >= 0xD800 && code <= 0xDBFF) {
+      const next = value.charCodeAt(index + 1)
+      if (index + 1 < value.length && next >= 0xDC00 && next <= 0xDFFF) {
+        byteLength = 4
+        size = 2
+      }
+    }
+
+    if (bytes + byteLength > maxBytes) {
+      break
+    }
+
+    bytes += byteLength
+    index += size
+  }
+
+  return {
+    bytes,
+    value: value.slice(0, index),
+    remaining: value.slice(index)
+  }
+}
+
 class FakeWeakRef {
   constructor (value) {
     this._value = value
@@ -94,7 +130,7 @@ function drain (stream) {
 
 function nextFlush (stream) {
   const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
-  let leftover = stream[kImpl].data.length - writeIndex
+  const leftover = stream[kImpl].data.length - writeIndex
 
   if (leftover > 0) {
     if (stream[kImpl].buf.length === 0) {
@@ -110,9 +146,9 @@ function nextFlush (stream) {
     }
 
     let toWrite = stream[kImpl].buf.slice(0, leftover)
-    let toWriteBytes = Buffer.byteLength(toWrite)
+    const toWriteBytes = Buffer.byteLength(toWrite)
     if (toWriteBytes <= leftover) {
-      stream[kImpl].buf = stream[kImpl].buf.slice(leftover)
+      stream[kImpl].buf = stream[kImpl].buf.slice(toWrite.length)
       // process._rawDebug('writing ' + toWrite.length)
       write(stream, toWrite, nextFlush.bind(null, stream))
     } else {
@@ -126,16 +162,11 @@ function nextFlush (stream) {
         Atomics.store(stream[kImpl].state, READ_INDEX, 0)
         Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
         Atomics.notify(stream[kImpl].state, READ_INDEX)
+        Atomics.notify(stream[kImpl].state, WRITE_INDEX)
 
-        // Find a toWrite length that fits the buffer
-        // it must exists as the buffer is at least 4 bytes length
-        // and the max utf-8 length for a char is 4 bytes.
-        while (toWriteBytes > stream[kImpl].data.length) {
-          leftover = leftover / 2
-          toWrite = stream[kImpl].buf.slice(0, leftover)
-          toWriteBytes = Buffer.byteLength(toWrite)
-        }
-        stream[kImpl].buf = stream[kImpl].buf.slice(leftover)
+        const chunk = takeUtf8Bytes(stream[kImpl].buf, stream[kImpl].data.length)
+        stream[kImpl].buf = chunk.remaining
+        toWrite = chunk.value
         write(stream, toWrite, nextFlush.bind(null, stream))
       })
     }
@@ -148,6 +179,7 @@ function nextFlush (stream) {
       Atomics.store(stream[kImpl].state, READ_INDEX, 0)
       Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
       Atomics.notify(stream[kImpl].state, READ_INDEX)
+      Atomics.notify(stream[kImpl].state, WRITE_INDEX)
       nextFlush(stream)
     })
   } else {
@@ -564,12 +596,13 @@ function writeSync (stream) {
 
   while (stream[kImpl].buf.length !== 0) {
     const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
-    let leftover = stream[kImpl].data.length - writeIndex
+    const leftover = stream[kImpl].data.length - writeIndex
     if (leftover === 0) {
       flushSync(stream)
       Atomics.store(stream[kImpl].state, READ_INDEX, 0)
       Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
       Atomics.notify(stream[kImpl].state, READ_INDEX)
+      Atomics.notify(stream[kImpl].state, WRITE_INDEX)
       continue
     } else if (leftover < 0) {
       // stream should never happen
@@ -577,29 +610,25 @@ function writeSync (stream) {
     }
 
     let toWrite = stream[kImpl].buf.slice(0, leftover)
-    let toWriteBytes = Buffer.byteLength(toWrite)
+    const toWriteBytes = Buffer.byteLength(toWrite)
     if (toWriteBytes <= leftover) {
-      stream[kImpl].buf = stream[kImpl].buf.slice(leftover)
+      stream[kImpl].buf = stream[kImpl].buf.slice(toWrite.length)
       // process._rawDebug('writing ' + toWrite.length)
       write(stream, toWrite, cb)
-    } else {
-      // multi-byte utf-8
-      flushSync(stream)
-      Atomics.store(stream[kImpl].state, READ_INDEX, 0)
-      Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
-      Atomics.notify(stream[kImpl].state, READ_INDEX)
-
-      // Find a toWrite length that fits the buffer
-      // it must exists as the buffer is at least 4 bytes length
-      // and the max utf-8 length for a char is 4 bytes.
-      while (toWriteBytes > stream[kImpl].buf.length) {
-        leftover = leftover / 2
-        toWrite = stream[kImpl].buf.slice(0, leftover)
-        toWriteBytes = Buffer.byteLength(toWrite)
-      }
-      stream[kImpl].buf = stream[kImpl].buf.slice(leftover)
-      write(stream, toWrite, cb)
+      continue
     }
+
+    // multi-byte utf-8
+    flushSync(stream)
+    Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+    Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+    Atomics.notify(stream[kImpl].state, READ_INDEX)
+    Atomics.notify(stream[kImpl].state, WRITE_INDEX)
+
+    const chunk = takeUtf8Bytes(stream[kImpl].buf, stream[kImpl].data.length)
+    stream[kImpl].buf = chunk.remaining
+    toWrite = chunk.value
+    write(stream, toWrite, cb)
   }
 }
 
