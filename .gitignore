@@ -155,3 +155,4 @@ test/ts/*js
 # AI
 .pi
 AGENTS.md
+CLAUDE.md
