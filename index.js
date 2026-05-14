@@ -16,58 +16,23 @@ const assert = require('assert')
 
 const kImpl = Symbol('kImpl')
 
-// V8 limit for string size
+// Maximum pending buffered data before forcing a synchronous drain
 const MAX_STRING = buffer.constants.MAX_STRING_LENGTH
 
 function noop () {}
 
-function takeUtf8Bytes (value, maxBytes) {
-  let bytes = 0
-  let index = 0
-
-  while (index < value.length) {
-    const code = value.charCodeAt(index)
-    let byteLength = 3
-    let size = 1
-
-    if (code <= 0x7F) {
-      byteLength = 1
-    } else if (code <= 0x7FF) {
-      byteLength = 2
-    } else if (code >= 0xD800 && code <= 0xDBFF) {
-      const next = value.charCodeAt(index + 1)
-      if (index + 1 < value.length && next >= 0xDC00 && next <= 0xDFFF) {
-        byteLength = 4
-        size = 2
-      }
-    }
-
-    if (bytes + byteLength > maxBytes) {
-      break
-    }
-
-    bytes += byteLength
-    index += size
-  }
-
-  return {
-    bytes,
-    value: value.slice(0, index),
-    remaining: value.slice(index)
-  }
-}
-
-function signalUpdate (stream) {
+function updateState (stream, fn) {
+  Atomics.add(stream[kImpl].state, SEQ_INDEX, 1)
+  fn()
   Atomics.add(stream[kImpl].state, SEQ_INDEX, 1)
   Atomics.notify(stream[kImpl].state, SEQ_INDEX)
 }
 
 function resetIndexes (stream) {
-  Atomics.store(stream[kImpl].state, READ_INDEX, 0)
-  Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
-  signalUpdate(stream)
-  Atomics.notify(stream[kImpl].state, READ_INDEX)
-  Atomics.notify(stream[kImpl].state, WRITE_INDEX)
+  updateState(stream, () => {
+    Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+    Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+  })
 }
 
 class FakeWeakRef {
@@ -143,31 +108,33 @@ function drain (stream) {
 }
 
 function nextFlush (stream) {
-  const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
-  const leftover = stream[kImpl].data.length - writeIndex
+  while (true) {
+    const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
+    const leftover = stream[kImpl].data.length - writeIndex
 
-  if (leftover > 0) {
-    if (stream[kImpl].buf.length === 0) {
-      stream[kImpl].flushing = false
+    if (leftover > 0) {
+      if (stream[kImpl].bufLen === 0) {
+        stream[kImpl].flushing = false
 
-      if (stream[kImpl].ending) {
-        end(stream)
-      } else if (stream[kImpl].needDrain) {
-        process.nextTick(drain, stream)
+        if (stream[kImpl].ending) {
+          end(stream)
+        } else if (stream[kImpl].needDrain) {
+          process.nextTick(drain, stream)
+        }
+
+        return
       }
 
-      return
+      write(stream, leftover, noop)
+      continue
     }
 
-    const { bytes: toWriteBytes, value: toWrite, remaining } = takeUtf8Bytes(stream[kImpl].buf, leftover)
-    if (toWriteBytes !== 0) {
-      stream[kImpl].buf = remaining
-      // process._rawDebug('writing ' + toWrite.length)
-      write(stream, toWrite, nextFlush.bind(null, stream))
-    } else {
-      // multi-byte utf-8
+    if (leftover === 0) {
+      if (writeIndex === 0 && stream[kImpl].bufLen === 0) {
+        // we had a flushSync in the meanwhile
+        return
+      }
       waitForRead(stream, () => {
-        // err is already handled in waitForRead()
         if (stream.destroyed) {
           return
         }
@@ -175,19 +142,12 @@ function nextFlush (stream) {
         resetIndexes(stream)
         nextFlush(stream)
       })
-    }
-  } else if (leftover === 0) {
-    if (writeIndex === 0 && stream[kImpl].buf.length === 0) {
-      // we had a flushSync in the meanwhile
       return
     }
-    waitForRead(stream, () => {
-      resetIndexes(stream)
-      nextFlush(stream)
-    })
-  } else {
+
     // This should never happen
     destroy(stream, new Error('overwritten'))
+    return
   }
 }
 
@@ -283,7 +243,9 @@ class ThreadStream extends EventEmitter {
     this[kImpl].finished = false
     this[kImpl].errored = null
     this[kImpl].closed = false
-    this[kImpl].buf = ''
+    this[kImpl].buf = []
+    this[kImpl].bufHead = 0
+    this[kImpl].bufLen = 0
     this[kImpl].flushCallbacks = new Map()
     this[kImpl].nextFlushId = 0
 
@@ -295,6 +257,7 @@ class ThreadStream extends EventEmitter {
   }
 
   write (data) {
+    const dataBuf = Buffer.isBuffer(data) ? data : Buffer.from(data)
     if (this[kImpl].destroyed) {
       error(this, new Error('the worker has exited'))
       return false
@@ -305,7 +268,7 @@ class ThreadStream extends EventEmitter {
       return false
     }
 
-    if (this[kImpl].flushing && this[kImpl].buf.length + data.length >= MAX_STRING) {
+    if (this[kImpl].flushing && this[kImpl].bufLen + dataBuf.length >= MAX_STRING) {
       try {
         writeSync(this)
         this[kImpl].flushing = true
@@ -315,7 +278,8 @@ class ThreadStream extends EventEmitter {
       }
     }
 
-    this[kImpl].buf += data
+    this[kImpl].buf.push(dataBuf)
+    this[kImpl].bufLen += dataBuf.length
 
     if (this[kImpl].sync) {
       try {
@@ -332,7 +296,7 @@ class ThreadStream extends EventEmitter {
       setImmediate(nextFlush, this)
     }
 
-    this[kImpl].needDrain = this[kImpl].data.length - this[kImpl].buf.length - Atomics.load(this[kImpl].state, WRITE_INDEX) <= 0
+    this[kImpl].needDrain = this[kImpl].data.length - this[kImpl].bufLen - Atomics.load(this[kImpl].state, WRITE_INDEX) <= 0
     return !this[kImpl].needDrain
   }
 
@@ -418,7 +382,7 @@ function flushBuffer (stream, cb) {
     return
   }
 
-  if (!stream[kImpl].sync && (stream[kImpl].flushing || stream[kImpl].buf.length > 0)) {
+  if (!stream[kImpl].sync && (stream[kImpl].flushing || stream[kImpl].bufLen > 0)) {
     setImmediate(flushBuffer, stream, cb)
     return
   }
@@ -532,14 +496,43 @@ function destroy (stream, err) {
   }
 }
 
-function write (stream, data, cb) {
+function write (stream, maxBytes, cb) {
   // data is smaller than the shared buffer length
   const current = Atomics.load(stream[kImpl].state, WRITE_INDEX)
-  const length = Buffer.byteLength(data)
-  stream[kImpl].data.write(data, current)
-  Atomics.store(stream[kImpl].state, WRITE_INDEX, current + length)
-  signalUpdate(stream)
-  Atomics.notify(stream[kImpl].state, WRITE_INDEX)
+  let offset = current
+  let remaining = maxBytes
+
+  while (remaining > 0 && stream[kImpl].bufLen !== 0) {
+    const head = stream[kImpl].bufHead
+    const buf = stream[kImpl].buf[head]
+
+    if (buf.length <= remaining) {
+      buf.copy(stream[kImpl].data, offset)
+      offset += buf.length
+      remaining -= buf.length
+      stream[kImpl].bufLen -= buf.length
+      stream[kImpl].bufHead = head + 1
+
+      if (stream[kImpl].bufHead === stream[kImpl].buf.length) {
+        stream[kImpl].buf.length = 0
+        stream[kImpl].bufHead = 0
+      } else if (stream[kImpl].bufHead >= 1024 && stream[kImpl].bufHead * 2 >= stream[kImpl].buf.length) {
+        stream[kImpl].buf.splice(0, stream[kImpl].bufHead)
+        stream[kImpl].bufHead = 0
+      }
+      continue
+    }
+
+    buf.copy(stream[kImpl].data, offset, 0, remaining)
+    stream[kImpl].buf[head] = buf.subarray(remaining)
+    stream[kImpl].bufLen -= remaining
+    offset += remaining
+    remaining = 0
+  }
+
+  updateState(stream, () => {
+    Atomics.store(stream[kImpl].state, WRITE_INDEX, offset)
+  })
   cb()
   return true
 }
@@ -556,10 +549,10 @@ function end (stream) {
     let readIndex = Atomics.load(stream[kImpl].state, READ_INDEX)
 
     // process._rawDebug('writing index')
-    Atomics.store(stream[kImpl].state, WRITE_INDEX, -1)
-    signalUpdate(stream)
+    updateState(stream, () => {
+      Atomics.store(stream[kImpl].state, WRITE_INDEX, -1)
+    })
     // process._rawDebug(`(end) readIndex (${Atomics.load(stream.state, READ_INDEX)}) writeIndex (${Atomics.load(stream.state, WRITE_INDEX)})`)
-    Atomics.notify(stream[kImpl].state, WRITE_INDEX)
 
     // Wait for the process to complete
     let spins = 0
@@ -599,7 +592,7 @@ function writeSync (stream) {
   }
   stream[kImpl].flushing = false
 
-  while (stream[kImpl].buf.length !== 0) {
+  while (stream[kImpl].bufLen !== 0) {
     const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
     const leftover = stream[kImpl].data.length - writeIndex
     if (leftover === 0) {
@@ -611,17 +604,7 @@ function writeSync (stream) {
       throw new Error('overwritten')
     }
 
-    const { bytes: toWriteBytes, value: toWrite, remaining } = takeUtf8Bytes(stream[kImpl].buf, leftover)
-    if (toWriteBytes === 0) {
-      // multi-byte utf-8
-      flushSync(stream)
-      resetIndexes(stream)
-      continue
-    }
-
-    stream[kImpl].buf = remaining
-    // process._rawDebug('writing ' + toWrite.length)
-    write(stream, toWrite, cb)
+    write(stream, leftover, cb)
   }
 }
 
