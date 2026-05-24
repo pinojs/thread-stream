@@ -111,7 +111,7 @@ function nextFlush (stream) {
   while (true) {
     const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
     if (stream.destroyed) {
-      error(this, new Error('the worker has exited'))
+      error(stream, new Error('the worker has exited'))
       return
     }
 
