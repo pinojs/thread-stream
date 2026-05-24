@@ -110,6 +110,10 @@ function drain (stream) {
 function nextFlush (stream) {
   while (true) {
     const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
+    if (stream.destroyed) {
+      return
+    }
+
     const leftover = stream[kImpl].data.length - writeIndex
 
     if (leftover > 0) {
