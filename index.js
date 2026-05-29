@@ -174,6 +174,12 @@ function onWorkerMessage (msg) {
     return
   }
 
+  // Node.js watch mode may send internal worker messages that do not
+  // participate in thread-stream's worker protocol.
+  if (msg?.code == null) {
+    return
+  }
+
   switch (msg.code) {
     case 'READY':
       // Replace the FakeWeakRef with a
