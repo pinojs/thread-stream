@@ -8,7 +8,8 @@ const { pathToFileURL } = require('url')
 const { wait } = require('./lib/wait')
 const {
   WRITE_INDEX,
-  READ_INDEX
+  READ_INDEX,
+  SEQ_INDEX
 } = require('./lib/indexes')
 const buffer = require('buffer')
 const assert = require('assert')
@@ -17,6 +18,13 @@ const kImpl = Symbol('kImpl')
 
 // V8 limit for string size
 const MAX_STRING = buffer.constants.MAX_STRING_LENGTH
+
+function updateState (stream, fn) {
+  Atomics.add(stream[kImpl].state, SEQ_INDEX, 1)
+  fn()
+  Atomics.add(stream[kImpl].state, SEQ_INDEX, 1)
+  Atomics.notify(stream[kImpl].state, SEQ_INDEX)
+}
 
 class FakeWeakRef {
   constructor (value) {
@@ -120,8 +128,11 @@ function nextFlush (stream) {
           return
         }
 
-        Atomics.store(stream[kImpl].state, READ_INDEX, 0)
-        Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+        updateState(stream, () => {
+          Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+          Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+        })
+        Atomics.notify(stream[kImpl].state, READ_INDEX)
 
         // Find a toWrite length that fits the buffer
         // it must exists as the buffer is at least 4 bytes length
@@ -141,8 +152,11 @@ function nextFlush (stream) {
       return
     }
     stream.flush(() => {
-      Atomics.store(stream[kImpl].state, READ_INDEX, 0)
-      Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+      updateState(stream, () => {
+        Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+        Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+      })
+      Atomics.notify(stream[kImpl].state, READ_INDEX)
       nextFlush(stream)
     })
   } else {
@@ -401,8 +415,9 @@ function write (stream, data, cb) {
   const current = Atomics.load(stream[kImpl].state, WRITE_INDEX)
   const length = Buffer.byteLength(data)
   stream[kImpl].data.write(data, current)
-  Atomics.store(stream[kImpl].state, WRITE_INDEX, current + length)
-  Atomics.notify(stream[kImpl].state, WRITE_INDEX)
+  updateState(stream, () => {
+    Atomics.store(stream[kImpl].state, WRITE_INDEX, current + length)
+  })
   cb()
   return true
 }
@@ -419,9 +434,10 @@ function end (stream) {
     let readIndex = Atomics.load(stream[kImpl].state, READ_INDEX)
 
     // process._rawDebug('writing index')
-    Atomics.store(stream[kImpl].state, WRITE_INDEX, -1)
+    updateState(stream, () => {
+      Atomics.store(stream[kImpl].state, WRITE_INDEX, -1)
+    })
     // process._rawDebug(`(end) readIndex (${Atomics.load(stream.state, READ_INDEX)}) writeIndex (${Atomics.load(stream.state, WRITE_INDEX)})`)
-    Atomics.notify(stream[kImpl].state, WRITE_INDEX)
 
     // Wait for the process to complete
     let spins = 0
@@ -466,8 +482,11 @@ function writeSync (stream) {
     let leftover = stream[kImpl].data.length - writeIndex
     if (leftover === 0) {
       flushSync(stream)
-      Atomics.store(stream[kImpl].state, READ_INDEX, 0)
-      Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+      updateState(stream, () => {
+        Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+        Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+      })
+      Atomics.notify(stream[kImpl].state, READ_INDEX)
       continue
     } else if (leftover < 0) {
       // stream should never happen
@@ -483,8 +502,11 @@ function writeSync (stream) {
     } else {
       // multi-byte utf-8
       flushSync(stream)
-      Atomics.store(stream[kImpl].state, READ_INDEX, 0)
-      Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+      updateState(stream, () => {
+        Atomics.store(stream[kImpl].state, READ_INDEX, 0)
+        Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
+      })
+      Atomics.notify(stream[kImpl].state, READ_INDEX)
 
       // Find a toWrite length that fits the buffer
       // it must exists as the buffer is at least 4 bytes length
