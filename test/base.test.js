@@ -9,7 +9,19 @@ const ThreadStream = require('..')
 const { MessageChannel } = require('worker_threads')
 const { once } = require('events')
 
-test('base sync=true', function (t, done) {
+function readFileAsync (path) {
+  return new Promise((resolve, reject) => {
+    readFile(path, 'utf8', (err, data) => {
+      if (err) {
+        reject(err)
+        return
+      }
+      resolve(data)
+    })
+  })
+}
+
+test('base sync=true', async function () {
   const dest = file()
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-file.js'),
@@ -17,24 +29,12 @@ test('base sync=true', function (t, done) {
     sync: true
   })
 
+  const finish = once(stream, 'finish')
+  const close = once(stream, 'close')
+
   assert.deepStrictEqual(stream.writableObjectMode, false)
-
   assert.deepStrictEqual(stream.writableFinished, false)
-  stream.on('finish', () => {
-    assert.deepStrictEqual(stream.writableFinished, true)
-    readFile(dest, 'utf8', (err, data) => {
-      assert.ifError(err)
-      assert.strictEqual(data, 'hello world\nsomething else\n')
-    })
-  })
-
   assert.deepStrictEqual(stream.closed, false)
-  stream.on('close', () => {
-    assert.deepStrictEqual(stream.closed, true)
-    assert.ok(!stream.writable)
-    done()
-  })
-
   assert.deepStrictEqual(stream.writableNeedDrain, false)
   assert.ok(stream.write('hello world\n'))
   assert.ok(stream.write('something else\n'))
@@ -43,9 +43,19 @@ test('base sync=true', function (t, done) {
   assert.deepStrictEqual(stream.writableEnded, false)
   stream.end()
   assert.deepStrictEqual(stream.writableEnded, true)
+
+  await finish
+  assert.deepStrictEqual(stream.writableFinished, true)
+
+  await close
+  assert.deepStrictEqual(stream.closed, true)
+  assert.ok(!stream.writable)
+
+  const data = await readFileAsync(dest)
+  assert.strictEqual(data, 'hello world\nsomething else\n')
 })
 
-test('overflow sync=true', function (t, done) {
+test('overflow sync=true', async function () {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
@@ -54,9 +64,9 @@ test('overflow sync=true', function (t, done) {
     sync: true
   })
 
+  const close = once(stream, 'close')
   let count = 0
 
-  // Write 10 chars, 20 times
   function write () {
     if (count++ === 20) {
       stream.end()
@@ -64,22 +74,17 @@ test('overflow sync=true', function (t, done) {
     }
 
     stream.write('aaaaaaaaaa')
-    // do not wait for drain event
     setImmediate(write)
   }
 
   write()
 
-  stream.on('close', () => {
-    readFile(dest, 'utf8', (err, data) => {
-      assert.ifError(err)
-      assert.strictEqual(data.length, 200)
-      done()
-    })
-  })
+  await close
+  const data = await readFileAsync(dest)
+  assert.strictEqual(data.length, 200)
 })
 
-test('overflow sync=false', function (t, done) {
+test('overflow sync=false', async function () {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
@@ -88,11 +93,11 @@ test('overflow sync=false', function (t, done) {
     sync: false
   })
 
+  const close = once(stream, 'close')
   let count = 0
 
   assert.deepStrictEqual(stream.writableNeedDrain, false)
 
-  // Write 10 chars, 20 times
   function write () {
     if (count++ === 20) {
       stream.end()
@@ -102,7 +107,6 @@ test('overflow sync=false', function (t, done) {
     if (!stream.write('aaaaaaaaaa')) {
       assert.deepStrictEqual(stream.writableNeedDrain, true)
     }
-    // do not wait for drain event
     setImmediate(write)
   }
 
@@ -112,16 +116,12 @@ test('overflow sync=false', function (t, done) {
     assert.deepStrictEqual(stream.writableNeedDrain, false)
   })
 
-  stream.on('close', () => {
-    readFile(dest, 'utf8', (err, data) => {
-      assert.ifError(err)
-      assert.strictEqual(data.length, 200)
-      done()
-    })
-  })
+  await close
+  const data = await readFileAsync(dest)
+  assert.strictEqual(data.length, 200)
 })
 
-test('over the bufferSize at startup', function (t, done) {
+test('over the bufferSize at startup', async function () {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 10,
@@ -130,25 +130,23 @@ test('over the bufferSize at startup', function (t, done) {
     sync: true
   })
 
-  stream.on('finish', () => {
-    readFile(dest, 'utf8', (err, data) => {
-      assert.ifError(err)
-      assert.strictEqual(data, 'hello world\nsomething else\n')
-    })
-  })
-
-  stream.on('close', () => {
-    done()
-  })
+  const finish = once(stream, 'finish')
+  const close = once(stream, 'close')
 
   assert.ok(stream.write('hello'))
   assert.ok(stream.write(' world\n'))
   assert.ok(stream.write('something else\n'))
 
   stream.end()
+
+  await finish
+  await close
+
+  const data = await readFileAsync(dest)
+  assert.strictEqual(data, 'hello world\nsomething else\n')
 })
 
-test('over the bufferSize at startup (async)', function (t, done) {
+test('over the bufferSize at startup (async)', async function () {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 10,
@@ -157,22 +155,20 @@ test('over the bufferSize at startup (async)', function (t, done) {
     sync: false
   })
 
+  const finish = once(stream, 'finish')
+  const close = once(stream, 'close')
+
   assert.ok(stream.write('hello'))
   assert.ok(!stream.write(' world\n'))
   assert.ok(!stream.write('something else\n'))
 
   stream.end()
 
-  stream.on('finish', () => {
-    readFile(dest, 'utf8', (err, data) => {
-      assert.ifError(err)
-      assert.strictEqual(data, 'hello world\nsomething else\n')
-    })
-  })
+  await finish
+  await close
 
-  stream.on('close', () => {
-    done()
-  })
+  const data = await readFileAsync(dest)
+  assert.strictEqual(data, 'hello world\nsomething else\n')
 })
 
 test('flushSync sync=false', async function () {
@@ -197,16 +193,7 @@ test('flushSync sync=false', async function () {
 
   await close
 
-  const data = await new Promise((resolve, reject) => {
-    readFile(dest, 'utf8', (err, data) => {
-      if (err) {
-        reject(err)
-        return
-      }
-      resolve(data)
-    })
-  })
-
+  const data = await readFileAsync(dest)
   assert.strictEqual(data.length, 200)
 })
 
