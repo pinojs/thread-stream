@@ -179,6 +179,8 @@ test('flushSync sync=false', async function (t) {
     sync: false
   })
 
+  const drain = once(stream, 'drain')
+  const finish = once(stream, 'finish')
   const close = once(stream, 'close')
 
   for (let count = 0; count < 20; count++) {
@@ -186,8 +188,14 @@ test('flushSync sync=false', async function (t) {
   }
 
   stream.flushSync()
+
+  if (stream.writableNeedDrain) {
+    await drain
+  }
+
   stream.end()
 
+  await finish
   await close
 
   const data = await readFileAsync(dest)
