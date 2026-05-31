@@ -175,7 +175,7 @@ test('over the bufferSize at startup (async)', function (t, done) {
   })
 })
 
-test('flushSync sync=false', function (t, done) {
+test('flushSync sync=false', async function () {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
@@ -184,22 +184,30 @@ test('flushSync sync=false', function (t, done) {
     sync: false
   })
 
+  const close = once(stream, 'close')
+
   stream.on('drain', () => {
     stream.end()
-  })
-
-  stream.on('close', () => {
-    readFile(dest, 'utf8', (err, data) => {
-      assert.ifError(err)
-      assert.strictEqual(data.length, 200)
-      done()
-    })
   })
 
   for (let count = 0; count < 20; count++) {
     stream.write('aaaaaaaaaa')
   }
   stream.flushSync()
+
+  await close
+
+  const data = await new Promise((resolve, reject) => {
+    readFile(dest, 'utf8', (err, data) => {
+      if (err) {
+        reject(err)
+        return
+      }
+      resolve(data)
+    })
+  })
+
+  assert.strictEqual(data.length, 200)
 })
 
 test('pass down MessagePorts', async function (t) {
@@ -224,7 +232,7 @@ test('pass down MessagePorts', async function (t) {
   assert.strictEqual(strings, 'hello world\nsomething else\n')
 })
 
-test('destroy does not error', function (t, done) {
+test('destroy does not error', async function () {
   const dest = file()
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-file.js'),
@@ -236,24 +244,25 @@ test('destroy does not error', function (t, done) {
     stream.worker.terminate()
   })
 
-  stream.on('error', (err) => {
-    assert.strictEqual(err.message, 'the worker thread exited')
+  const [err] = await once(stream, 'error')
+  assert.strictEqual(err.message, 'the worker thread exited')
+
+  await new Promise((resolve) => {
     stream.flush((err) => {
       assert.strictEqual(err.message, 'the worker has exited')
+      resolve()
     })
-    assert.doesNotThrow(() => stream.flushSync())
-    assert.doesNotThrow(() => stream.end())
-    done()
   })
+
+  assert.doesNotThrow(() => stream.flushSync())
+  assert.doesNotThrow(() => stream.end())
 })
 
-test('syntax error', function (t, done) {
+test('syntax error', async function () {
   const stream = new ThreadStream({
     filename: join(__dirname, 'syntax-error.mjs')
   })
 
-  stream.on('error', (err) => {
-    assert.strictEqual(err.message, 'Unexpected end of input')
-    done()
-  })
+  const [err] = await once(stream, 'error')
+  assert.strictEqual(err.message, 'Unexpected end of input')
 })
