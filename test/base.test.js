@@ -170,7 +170,9 @@ test('over the bufferSize at startup (async)', function (t) {
   })
 })
 
-test('flushSync sync=false', async function (t) {
+test('flushSync sync=false', function (t) {
+  t.plan(2)
+
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
@@ -179,24 +181,23 @@ test('flushSync sync=false', async function (t) {
     sync: false
   })
 
-  await once(stream, 'ready')
+  stream.on('ready', () => {
+    for (let count = 0; count < 20; count++) {
+      stream.write('aaaaaaaaaa')
+    }
 
-  const finish = once(stream, 'finish')
-  const close = once(stream, 'close')
+    stream.flushSync()
+    setImmediate(() => {
+      stream.end()
+    })
+  })
 
-  for (let count = 0; count < 20; count++) {
-    stream.write('aaaaaaaaaa')
-  }
-
-  stream.flushSync()
-  await new Promise((resolve) => setImmediate(resolve))
-  stream.end()
-
-  await finish
-  await close
-
-  const data = await readFileAsync(dest)
-  t.equal(data.length, 200)
+  stream.on('finish', () => {
+    readFile(dest, 'utf8', (err, data) => {
+      t.error(err)
+      t.equal(data.length, 200)
+    })
+  })
 })
 
 test('pass down MessagePorts', async function (t) {
