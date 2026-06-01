@@ -8,9 +8,19 @@ const ThreadStream = require('..')
 const { MessageChannel } = require('worker_threads')
 const { once } = require('events')
 
-test('base sync=true', function (t) {
-  t.plan(15)
+function readFileAsync (path) {
+  return new Promise((resolve, reject) => {
+    readFile(path, 'utf8', (err, data) => {
+      if (err) {
+        reject(err)
+        return
+      }
+      resolve(data)
+    })
+  })
+}
 
+test('base sync=true', async function (t) {
   const dest = file()
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-file.js'),
@@ -18,24 +28,12 @@ test('base sync=true', function (t) {
     sync: true
   })
 
+  const finish = once(stream, 'finish')
+  const close = once(stream, 'close')
+
   t.same(stream.writableObjectMode, false)
-
   t.same(stream.writableFinished, false)
-  stream.on('finish', () => {
-    t.same(stream.writableFinished, true)
-    readFile(dest, 'utf8', (err, data) => {
-      t.error(err)
-      t.equal(data, 'hello world\nsomething else\n')
-    })
-  })
-
   t.same(stream.closed, false)
-  stream.on('close', () => {
-    t.same(stream.closed, true)
-    t.notOk(stream.writable)
-    t.pass('close emitted')
-  })
-
   t.same(stream.writableNeedDrain, false)
   t.ok(stream.write('hello world\n'))
   t.ok(stream.write('something else\n'))
@@ -44,11 +42,19 @@ test('base sync=true', function (t) {
   t.same(stream.writableEnded, false)
   stream.end()
   t.same(stream.writableEnded, true)
+
+  await finish
+  t.same(stream.writableFinished, true)
+
+  await close
+  t.same(stream.closed, true)
+  t.notOk(stream.writable)
+
+  const data = await readFileAsync(dest)
+  t.equal(data, 'hello world\nsomething else\n')
 })
 
-test('overflow sync=true', function (t) {
-  t.plan(3)
-
+test('overflow sync=true', async function (t) {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
@@ -57,9 +63,9 @@ test('overflow sync=true', function (t) {
     sync: true
   })
 
+  const close = once(stream, 'close')
   let count = 0
 
-  // Write 10 chars, 20 times
   function write () {
     if (count++ === 20) {
       stream.end()
@@ -67,25 +73,17 @@ test('overflow sync=true', function (t) {
     }
 
     stream.write('aaaaaaaaaa')
-    // do not wait for drain event
     setImmediate(write)
   }
 
   write()
 
-  stream.on('finish', () => {
-    t.pass('finish emitted')
-  })
-
-  stream.on('close', () => {
-    readFile(dest, 'utf8', (err, data) => {
-      t.error(err)
-      t.equal(data.length, 200)
-    })
-  })
+  await close
+  const data = await readFileAsync(dest)
+  t.equal(data.length, 200)
 })
 
-test('overflow sync=false', function (t) {
+test('overflow sync=false', async function (t) {
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
@@ -94,14 +92,13 @@ test('overflow sync=false', function (t) {
     sync: false
   })
 
+  const close = once(stream, 'close')
   let count = 0
 
   t.same(stream.writableNeedDrain, false)
 
-  // Write 10 chars, 20 times
   function write () {
     if (count++ === 20) {
-      t.pass('end sent')
       stream.end()
       return
     }
@@ -109,7 +106,6 @@ test('overflow sync=false', function (t) {
     if (!stream.write('aaaaaaaaaa')) {
       t.same(stream.writableNeedDrain, true)
     }
-    // do not wait for drain event
     setImmediate(write)
   }
 
@@ -117,24 +113,15 @@ test('overflow sync=false', function (t) {
 
   stream.on('drain', () => {
     t.same(stream.writableNeedDrain, false)
-    t.pass('drain')
   })
 
-  stream.on('finish', () => {
-    t.pass('finish emitted')
-  })
-
-  stream.on('close', () => {
-    readFile(dest, 'utf8', (err, data) => {
-      t.error(err)
-      t.equal(data.length, 200)
-      t.end()
-    })
-  })
+  await close
+  const data = await readFileAsync(dest)
+  t.equal(data.length, 200)
 })
 
 test('over the bufferSize at startup', function (t) {
-  t.plan(6)
+  t.plan(5)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -151,10 +138,6 @@ test('over the bufferSize at startup', function (t) {
     })
   })
 
-  stream.on('close', () => {
-    t.pass('close emitted')
-  })
-
   t.ok(stream.write('hello'))
   t.ok(stream.write(' world\n'))
   t.ok(stream.write('something else\n'))
@@ -163,7 +146,7 @@ test('over the bufferSize at startup', function (t) {
 })
 
 test('over the bufferSize at startup (async)', function (t) {
-  t.plan(6)
+  t.plan(5)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -185,13 +168,11 @@ test('over the bufferSize at startup (async)', function (t) {
       t.equal(data, 'hello world\nsomething else\n')
     })
   })
-
-  stream.on('close', () => {
-    t.pass('close emitted')
-  })
 })
 
 test('flushSync sync=false', function (t) {
+  t.plan(2)
+
   const dest = file()
   const stream = new ThreadStream({
     bufferSize: 128,
@@ -200,32 +181,26 @@ test('flushSync sync=false', function (t) {
     sync: false
   })
 
-  stream.on('drain', () => {
-    t.pass('drain')
-    stream.end()
-  })
+  stream.on('ready', () => {
+    for (let count = 0; count < 20; count++) {
+      stream.write('aaaaaaaaaa')
+    }
 
-  stream.on('finish', () => {
-    t.pass('finish emitted')
-  })
-
-  stream.on('close', () => {
-    readFile(dest, 'utf8', (err, data) => {
-      t.error(err)
-      t.equal(data.length, 200)
-      t.end()
+    stream.flushSync()
+    setImmediate(() => {
+      stream.end()
     })
   })
 
-  for (let count = 0; count < 20; count++) {
-    stream.write('aaaaaaaaaa')
-  }
-  stream.flushSync()
+  stream.on('finish', () => {
+    readFile(dest, 'utf8', (err, data) => {
+      t.error(err)
+      t.equal(data.length, 200)
+    })
+  })
 })
 
 test('pass down MessagePorts', async function (t) {
-  t.plan(3)
-
   const { port1, port2 } = new MessageChannel()
   const stream = new ThreadStream({
     filename: join(__dirname, 'port.js'),
@@ -235,6 +210,7 @@ test('pass down MessagePorts', async function (t) {
     },
     sync: false
   })
+
   t.teardown(() => {
     stream.end()
   })
@@ -243,13 +219,10 @@ test('pass down MessagePorts', async function (t) {
   t.ok(stream.write('something else\n'))
 
   const [strings] = await once(port2, 'message')
-
   t.equal(strings, 'hello world\nsomething else\n')
 })
 
-test('destroy does not error', function (t) {
-  t.plan(5)
-
+test('destroy does not error', async function (t) {
   const dest = file()
   const stream = new ThreadStream({
     filename: join(__dirname, 'to-file.js'),
@@ -258,28 +231,28 @@ test('destroy does not error', function (t) {
   })
 
   stream.on('ready', () => {
-    t.pass('ready emitted')
     stream.worker.terminate()
   })
 
-  stream.on('error', (err) => {
-    t.equal(err.message, 'the worker thread exited')
+  const [err] = await once(stream, 'error')
+  t.equal(err.message, 'the worker thread exited')
+
+  await new Promise((resolve) => {
     stream.flush((err) => {
       t.equal(err.message, 'the worker has exited')
+      resolve()
     })
-    t.doesNotThrow(() => stream.flushSync())
-    t.doesNotThrow(() => stream.end())
   })
+
+  t.doesNotThrow(() => stream.flushSync())
+  t.doesNotThrow(() => stream.end())
 })
 
-test('syntax error', function (t) {
-  t.plan(1)
-
+test('syntax error', async function (t) {
   const stream = new ThreadStream({
     filename: join(__dirname, 'syntax-error.mjs')
   })
 
-  stream.on('error', (err) => {
-    t.equal(err.message, 'Unexpected end of input')
-  })
+  const [err] = await once(stream, 'error')
+  t.equal(err.message, 'Unexpected end of input')
 })
