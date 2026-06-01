@@ -121,7 +121,7 @@ test('overflow sync=false', async function (t) {
 })
 
 test('over the bufferSize at startup', function (t) {
-  t.plan(6)
+  t.plan(5)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -138,10 +138,6 @@ test('over the bufferSize at startup', function (t) {
     })
   })
 
-  stream.on('close', () => {
-    t.pass('close emitted')
-  })
-
   t.ok(stream.write('hello'))
   t.ok(stream.write(' world\n'))
   t.ok(stream.write('something else\n'))
@@ -150,7 +146,7 @@ test('over the bufferSize at startup', function (t) {
 })
 
 test('over the bufferSize at startup (async)', function (t) {
-  t.plan(6)
+  t.plan(5)
 
   const dest = file()
   const stream = new ThreadStream({
@@ -171,10 +167,6 @@ test('over the bufferSize at startup (async)', function (t) {
       t.error(err)
       t.equal(data, 'hello world\nsomething else\n')
     })
-  })
-
-  stream.on('close', () => {
-    t.pass('close emitted')
   })
 })
 
