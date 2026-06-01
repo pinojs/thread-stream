@@ -187,7 +187,8 @@ test('flushSync sync=false', async function (t) {
     sync: false
   })
 
-  const drain = once(stream, 'drain')
+  await once(stream, 'ready')
+
   const finish = once(stream, 'finish')
   const close = once(stream, 'close')
 
@@ -196,11 +197,7 @@ test('flushSync sync=false', async function (t) {
   }
 
   stream.flushSync()
-
-  if (stream.writableNeedDrain) {
-    await drain
-  }
-
+  await new Promise((resolve) => setImmediate(resolve))
   stream.end()
 
   await finish
