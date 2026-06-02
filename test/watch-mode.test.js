@@ -1,11 +1,12 @@
 'use strict'
 
 const { test } = require('tap')
-const { once } = require('events')
 const { join } = require('path')
 const ThreadStream = require('..')
 
-test('ignores worker messages without a protocol code', async function (t) {
+test('ignores worker messages without a protocol code', function (t) {
+  t.plan(2)
+
   const stream = new ThreadStream({
     filename: join(__dirname, 'message-without-code.js'),
     sync: false
@@ -16,14 +17,12 @@ test('ignores worker messages without a protocol code', async function (t) {
     errors.push(err)
   })
 
-  const ready = once(stream, 'ready')
-  const close = once(stream, 'close')
+  stream.on('ready', () => {
+    t.ok(stream.write('hello world\n'))
+    stream.end()
+  })
 
-  t.ok(stream.write('hello world\n'))
-  stream.end()
-
-  await ready
-  await close
-
-  t.same(errors, [])
+  stream.on('finish', () => {
+    t.same(errors, [])
+  })
 })
