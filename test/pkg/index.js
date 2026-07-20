@@ -21,17 +21,39 @@ process.on('uncaughtException', (error) => {
   process.exit(1)
 })
 
-const stream = new ThreadStream({
-  filename: join(__dirname, '..', 'to-file.js'),
-  workerData: { dest },
-  sync: true
+const stream1Promise = new Promise((resolve) => {
+  const stream = new ThreadStream({
+    filename: join(__dirname, '..', 'to-file.js'),
+    workerData: { dest },
+    sync: true
+  })
+
+  stream.worker.removeAllListeners('message')
+  stream.worker.once('message', (message) => {
+    assert.strictEqual(message.code, 'CUSTOM-WORKER-CALLED')
+    resolve()
+  })
+
+  stream.end()
 })
 
-stream.worker.removeAllListeners('message')
-stream.worker.once('message', (message) => {
-  assert.strictEqual(message.code, 'CUSTOM-WORKER-CALLED')
+const stream2Promise = new Promise((resolve) => {
+  const stream = new ThreadStream({
+    filename: join(__dirname, '..', 'to-file-worker.js'),
+    workerData: { dest },
+    sync: true
+  })
+
+  stream.worker.removeAllListeners('message')
+  stream.worker.once('message', (message) => {
+    assert.strictEqual(message.code, 'CUSTOM-WORKER-CALLED')
+    resolve()
+  })
+
+  stream.end()
+})
+
+Promise.all([stream1Promise, stream2Promise]).then(() => {
   console.log('pkg test passed')
   process.exit(0)
 })
-
-stream.end()
