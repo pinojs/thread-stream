@@ -11,7 +11,7 @@
     "real-require": "^1.0.0"
   },
   "devDependencies": {
-    "@types/node": "^25.0.2",
+    "@types/node": "^26.1.1",
     "@yao-pkg/pkg": "^6.0.0",
     "borp": "^1.0.0",
     "desm": "^1.3.0",
@@ -21,15 +21,20 @@
     "pino-elasticsearch": "^9.0.0",
     "sonic-boom": "^5.0.0",
     "ts-node": "^10.8.0",
+    "tsd": "^0.33.0",
     "typescript": "~5.7.3"
   },
   "scripts": {
     "build": "tsc --noEmit",
     "lint": "eslint",
-    "test": "npm run lint && npm run build && npm run transpile && borp --pattern \"test/*.test.{js,mjs}\"",
-    "test:ci": "npm run lint && npm run transpile && borp --pattern \"test/*.test.{js,mjs}\"",
+    "test": "npm run lint && npm run build && npm run test:types && npm run transpile && borp --pattern \"test/*.test.{js,mjs}\"",
+    "test:ci": "npm run lint && npm run test:types && npm run transpile && borp --pattern \"test/*.test.{js,mjs}\"",
+    "test:types": "tsd",
     "test:yarn": "npm run transpile && borp --pattern \"test/*.test.js\"",
     "transpile": "sh ./test/ts/transpile.sh"
+  },
+  "tsd": {
+    "directory": "test/types"
   },
   "repository": {
     "type": "git",
