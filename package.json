@@ -11,7 +11,7 @@
     "real-require": "^1.0.0"
   },
   "devDependencies": {
-    "@types/node": "^25.0.2",
+    "@types/node": "^26.4.0",
     "@yao-pkg/pkg": "^6.0.0",
     "borp": "^1.0.0",
     "desm": "^1.3.0",
