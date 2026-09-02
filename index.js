@@ -33,6 +33,7 @@ function resetIndexes (stream) {
     Atomics.store(stream[kImpl].state, READ_INDEX, 0)
     Atomics.store(stream[kImpl].state, WRITE_INDEX, 0)
   })
+  Atomics.notify(stream[kImpl].state, READ_INDEX)
 }
 
 class FakeWeakRef {
