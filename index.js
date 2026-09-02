@@ -172,9 +172,11 @@ function onWorkerMessage (msg) {
 
   switch (msg.code) {
     case 'READY':
-      // Replace the FakeWeakRef with a
-      // proper one.
-      this.stream = new WeakRef(stream)
+      // Allow inactive streams to be collected, but retain streams that are
+      // ending until the worker has emitted close.
+      if (!stream[kImpl].ending) {
+        this.stream = new WeakRef(stream)
+      }
 
       waitForRead(stream, () => {
         stream[kImpl].ready = true
@@ -310,6 +312,9 @@ class ThreadStream extends EventEmitter {
     }
 
     this[kImpl].ending = true
+    // The worker normally holds only a weak reference after READY. Keep this
+    // stream alive while its destination runs any asynchronous finalizer.
+    this.worker.stream = new FakeWeakRef(this)
     end(this)
   }
 
