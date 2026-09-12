@@ -41,12 +41,44 @@ test('wait returns ok when the expected value is reached', async function () {
   assert.strictEqual(result, 'ok')
 })
 
-test('wait returns not-equal when the expected value is skipped', async function () {
+test('wait returns ok when the expected value is overshot', async function () {
+  // The reader (READ_INDEX) advances in jumps and may skip over a snapshot of
+  // `expected`. Reaching or passing it means the reader has caught up, so this
+  // should resolve as ok rather than waiting forever (#250).
   const result = await waitForResult((state) => {
     Atomics.store(state, 0, 2)
   })
 
-  assert.strictEqual(result, 'not-equal')
+  assert.strictEqual(result, 'ok')
+})
+
+test('wait returns ok when the value already overshot and will never change again', async function () {
+  // This reproduces the #250 hang: READ_INDEX already equals WRITE_INDEX (the
+  // worker caught up and is idle), but `expected` is a stale, lower snapshot.
+  // With equality-only comparison, wait() arms on a value that never changes
+  // again and waits forever. It must instead resolve as soon as the value has
+  // reached/passed the target.
+  const state = new Int32Array(new SharedArrayBuffer(4))
+  Atomics.store(state, 0, 100)
+
+  const result = await new Promise((resolve, reject) => {
+    const guard = setTimeout(() => {
+      reject(new Error('wait did not complete'))
+    }, 500)
+
+    wait(state, 0, 1, Infinity, (err, res) => {
+      clearTimeout(guard)
+
+      if (err) {
+        reject(err)
+        return
+      }
+
+      resolve(res)
+    })
+  })
+
+  assert.strictEqual(result, 'ok')
 })
 
 test('wait returns not-equal when the value cycles back before notification', async function () {
@@ -71,7 +103,8 @@ test('wait detects a value change after the fallback timeout', async function ()
     Atomics.store(state, 0, 2)
   }, { notify: false, timeout: 10 })
 
-  assert.strictEqual(result, 'not-equal')
+  // The value moved to 2, which >= the expected 1, so the condition is met.
+  assert.strictEqual(result, 'ok')
 })
 
 test('wait returns timed-out when the value does not change', async function () {
