@@ -255,6 +255,11 @@ class ThreadStream extends EventEmitter {
     this[kImpl].bufLen = 0
     this[kImpl].flushCallbacks = new Map()
     this[kImpl].nextFlushId = 0
+    this[kImpl].flushRetainCount = 0
+    // Worker threads start referenced. Track user-facing ref() / unref()
+    // separately so a pending flush(cb) can keep the loop alive without
+    // clobbering an explicit ref().
+    this[kImpl].userRef = true
 
     // TODO (fix): Make private?
     this.worker = createWorker(this, opts) // TODO (fix): make private
@@ -320,15 +325,32 @@ class ThreadStream extends EventEmitter {
   }
 
   flush (cb) {
-    cb = typeof cb === 'function' ? cb : noop
+    const userCb = typeof cb === 'function' ? cb : null
+    cb = userCb || noop
+
+    if (userCb) {
+      retainWorkerForPendingFlush(this)
+    }
+
+    let finished = false
+    const done = (err) => {
+      if (finished) {
+        return
+      }
+      finished = true
+      if (userCb) {
+        releaseWorkerForPendingFlush(this)
+      }
+      cb(err)
+    }
 
     flushBuffer(this, (err) => {
       if (err) {
-        process.nextTick(cb, err)
+        process.nextTick(done, err)
         return
       }
 
-      requestWorkerFlush(this, cb)
+      requestWorkerFlush(this, done)
     })
   }
 
@@ -342,10 +364,14 @@ class ThreadStream extends EventEmitter {
   }
 
   unref () {
-    this.worker.unref()
+    this[kImpl].userRef = false
+    if (this[kImpl].flushRetainCount === 0) {
+      this.worker.unref()
+    }
   }
 
   ref () {
+    this[kImpl].userRef = true
     this.worker.ref()
   }
 
@@ -416,6 +442,23 @@ function waitForRead (stream, cb) {
 
     cb()
   })
+}
+
+function retainWorkerForPendingFlush (stream) {
+  if (stream[kImpl].flushRetainCount === 0) {
+    stream.worker.ref()
+  }
+  stream[kImpl].flushRetainCount++
+}
+
+function releaseWorkerForPendingFlush (stream) {
+  if (stream[kImpl].flushRetainCount === 0) {
+    return
+  }
+  stream[kImpl].flushRetainCount--
+  if (stream[kImpl].flushRetainCount === 0 && !stream[kImpl].userRef) {
+    stream.worker.unref()
+  }
 }
 
 function requestWorkerFlush (stream, cb) {

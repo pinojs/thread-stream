@@ -64,6 +64,7 @@ declare class ThreadStream extends EventEmitter {
    *
    * The callback is invoked once data has been consumed by the worker and the
    * worker destination has acknowledged the flush.
+   * A callback keeps the worker referenced until it runs, even after unref().
    */
   flush(cb?: (err?: Error) => void): void
   /**
