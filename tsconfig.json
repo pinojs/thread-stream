@@ -1,8 +1,7 @@
 {
-    "compilerOptions": {
-        "esModuleInterop": true
-    },
-    "files": [
-        "index.d.ts"
-    ],
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "types": ["node"]
+  },
+  "files": ["index.d.ts"]
 }

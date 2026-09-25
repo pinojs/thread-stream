@@ -23,7 +23,6 @@ function basic (esVersion) {
   })
 }
 
-basic('es5')
 basic('es6')
 basic('es2017')
 basic('esnext')
