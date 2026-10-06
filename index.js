@@ -231,6 +231,12 @@ class ThreadStream extends EventEmitter {
   constructor (opts = {}) {
     super()
 
+    // Defense-in-depth: copy caller options onto a null-prototype object so
+    // that inherited properties (e.g. a polluted Object.prototype.workerOpts)
+    // cannot be read and flowed into the worker, where env / execArgv are
+    // honored.
+    opts = Object.assign(Object.create(null), opts)
+
     if (opts.bufferSize < 4) {
       throw new Error('bufferSize must at least fit a 4-byte utf-8 char')
     }
