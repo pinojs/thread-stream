@@ -111,7 +111,9 @@ function drain (stream) {
 function nextFlush (stream) {
   while (true) {
     const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
-    if (stream.destroyed) {
+    // The worker stores -2 in shared memory before its ERROR message is
+    // delivered, so the stream may not be destroyed yet.
+    if (stream.destroyed || writeIndex < 0) {
       return
     }
 
@@ -647,6 +649,9 @@ function writeSync (stream) {
 
   while (stream[kImpl].bufLen !== 0) {
     const writeIndex = Atomics.load(stream[kImpl].state, WRITE_INDEX)
+    if (writeIndex < 0) {
+      throw new Error('_writeSync failed')
+    }
     const leftover = stream[kImpl].data.length - writeIndex
     if (leftover === 0) {
       flushSync(stream)
