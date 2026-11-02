@@ -4,7 +4,7 @@ const { join } = require('path')
 const ThreadStream = require('..')
 
 const stream = new ThreadStream({
-  filename: join(__dirname, 'to-file.js'),
+  filename: join(__dirname, 'to-file-sync.js'),
   workerData: { dest: process.argv[2] },
   sync: true
 })
