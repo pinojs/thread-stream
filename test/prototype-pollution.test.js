@@ -87,6 +87,8 @@ test('does not inherit a polluted Object.prototype.bufferSize', async function (
   t.after(() => stream.end())
 
   stream.emit('message', { port: port1 }, [port1])
-  const [{ threadName }] = await once(port2, 'message')
-  assert.strictEqual(threadName, 'thread-stream')
+  const [report] = await once(port2, 'message')
+  if (supportsThreadName) {
+    assert.strictEqual(report.threadName, 'thread-stream')
+  }
 })
